@@ -1,3 +1,33 @@
+# Conduit 1.3.5
+
+Conduit 1.3.5 brings **Minecraft 26.2 support** by rebasing onto the current upstream Velocity-CTD
+line (`libdeflate`), which adds protocol 776 (26.2) and 26.1. Existing 1.7–1.21 clients continue to
+connect through the same proxy.
+
+## Minecraft 26.2
+
+* Adds **Minecraft 26.2 (protocol 776)** and 26.1 to the supported client range, inherited from
+  upstream Velocity-CTD.
+* Upstream retired its `dev` branch, so Conduit's setup/sync scripts and build metadata now track
+  the `libdeflate` line. Building from source is unchanged: `./scripts/setup.sh && ./gradlew build`.
+
+## Reorganized module layout
+
+* Upstream split the old `luckperms-integration` module into a `permission-integration` SPI plus a
+  per-provider adapter, and added a `bootstrap` module. Conduit's `settings.gradle.kts` and setup
+  scripts follow suit, and the proxy jar now uses upstream's built-in permission-integration
+  embedding instead of Conduit's hand-rolled copy. Native LuckPerms and spark bundling are unchanged.
+
+## Hardening
+
+* Conduit's overlays were re-derived on the new upstream so they no longer revert upstream fixes —
+  most importantly the **bounded pre-join plugin-message queue** in `ClientPlaySessionHandler`,
+  whose loss in the old overlay reintroduced an unbounded-queue DoS vector. Upstream's server
+  reconciliation and consolidated endpoint logging are likewise preserved, with Conduit's features
+  (tab-complete cache, configurable watermarks, raised backlog, branding) re-applied on top.
+
+---
+
 # Conduit 1.3.4
 
 Conduit 1.3.4 adds **native LuckPerms** — the official LuckPerms Velocity plugin is now bundled

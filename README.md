@@ -2,7 +2,7 @@
 
 > A performance-focused, modded-network-ready fork of [Velocity-CTD](https://github.com/GemstoneGG/Velocity-CTD).
 
-Conduit is built directly on Velocity-CTD `dev` and layers Conduit’s modded-network
+Conduit is built directly on Velocity-CTD `libdeflate` and layers Conduit’s modded-network
 optimizations on top of CTD’s Redis, queue, command, and LuckPerms integration work. It remains
 compatible with existing Velocity plugins and targets Paper, Spigot, Fabric, Forge, and NeoForge
 backends.
@@ -55,7 +55,7 @@ On first run, Conduit generates a `conduit.toml` file alongside `velocity.toml` 
 
 ### Build from source
 
-**Prerequisites:** Java 21+, Git
+**Prerequisites:** Java 25+, Git
 
 #### macOS / Linux
 
@@ -89,7 +89,7 @@ cd conduit
 
 ```powershell
 # Fetch new upstream commits, then re-run setup
-git -C .upstream-velocity fetch origin dev
+git -C .upstream-velocity fetch origin libdeflate
 git -C .upstream-velocity checkout FETCH_HEAD
 .\scripts\setup.ps1
 ```

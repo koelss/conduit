@@ -70,6 +70,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  */
 public final class ConnectionManager {
 
+  // Conduit: resolve the write-buffer watermarks from conduit.toml, falling back to the upstream
+  // 1 MiB / 2 MiB defaults before Conduit has been initialised.
   private static WriteBufferWaterMark resolveWriteMark() {
     try {
       ConduitConfig cfg = Conduit.get().getConfig();
@@ -140,8 +142,15 @@ public final class ConnectionManager {
         .childHandler(this.serverChannelInitializer.get())
         .childOption(ChannelOption.TCP_NODELAY, true)
         .childOption(ChannelOption.IP_TOS, 0x18)
+        // Conduit: raise the accept backlog from Netty's default (128) so bursts of logins on large
+        // networks are not dropped at the TCP layer before the bot filter can see them.
         .option(ChannelOption.SO_BACKLOG, 1024)
         .localAddress(address);
+
+    LOGGER.info("[Conduit] Binding {} (write-buffer {}/{} KiB, backlog 1024)",
+        address,
+        writeMark.low() / 1024,
+        writeMark.high() / 1024);
 
     if (server.getConfiguration().useTcpFastOpen()) {
       bootstrap.option(ChannelOption.TCP_FASTOPEN, 3);
@@ -157,11 +166,6 @@ public final class ConnectionManager {
     int binds = server.getConfiguration().isEnableReusePort()
         ? ((MultithreadEventExecutorGroup) this.workerGroup).executorCount() : 1;
 
-    LOGGER.info("[Conduit] Binding {} (write-buffer {}/{} KiB, backlog 1024)",
-        address,
-        writeMark.low() / 1024,
-        writeMark.high() / 1024);
-
     for (int bind = 0; bind < binds; bind++) {
       // Wait for each bind to open. If we encounter any errors, don't try to bind again.
       int finalBind = bind;
@@ -171,9 +175,9 @@ public final class ConnectionManager {
             if (future.isSuccess()) {
               this.endpoints.put(address, new Endpoint(channel, ListenerType.MINECRAFT));
 
-              LOGGER.info("Listening on {}", channel.localAddress());
-
               if (finalBind == 0) {
+                LOGGER.info("Listening on {} with {} endpoint{}", channel.localAddress(), binds, binds == 1 ? "" : "s");
+
                 // Warn people with console access that HAProxy is in use, see PR: #1436
                 if (this.server.getConfiguration().isProxyProtocol()) {
                   LOGGER.warn(
@@ -262,9 +266,15 @@ public final class ConnectionManager {
     // should have a chance to be notified before the server stops accepting connections.
     server.getEventManager().fire(new ListenerCloseEvent(oldBind, type)).join();
 
+    boolean loggedClosure = false;
+
     for (Endpoint endpoint : endpoints) {
       Channel serverChannel = endpoint.getChannel();
-      LOGGER.info("Closing endpoint {}", serverChannel.localAddress());
+      if (!loggedClosure) {
+        loggedClosure = true;
+        LOGGER.info("Closing endpoint {}", serverChannel.localAddress());
+      }
+
       serverChannel.close().syncUninterruptibly();
     }
   }
@@ -284,8 +294,9 @@ public final class ConnectionManager {
       // should have a chance to be notified before the server stops accepting connections.
       server.getEventManager().fire(new ListenerCloseEvent(address, type)).join();
 
+      LOGGER.info("Closing endpoint {}", address);
+
       for (Endpoint endpoint : endpoints) {
-        LOGGER.info("Closing endpoint {}", address);
         if (interrupt) {
           try {
             endpoint.getChannel().close().sync();

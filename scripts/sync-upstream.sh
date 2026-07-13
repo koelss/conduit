@@ -6,7 +6,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 UPSTREAM_DIR="$ROOT_DIR/.upstream-velocity"
-UPSTREAM_BRANCH="dev"
+UPSTREAM_BRANCH="libdeflate"
 
 echo "==> Fetching upstream changes..."
 git -C "$UPSTREAM_DIR" remote set-url origin "https://github.com/GemstoneGG/Velocity-CTD.git"
