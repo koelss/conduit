@@ -8,10 +8,12 @@
 # Upstream Velocity cache and generated working tree
 /.upstream-velocity/
 /api/
+/bootstrap/
 /build-logic/
 /config/
 /luckperms-integration/
 /native/
+/permission-integration/
 /proxy/
 /gradle/
 /gradlew

@@ -1,6 +1,39 @@
 # Conduit — Change Log
 
-All changes relative to upstream `GemstoneGG/Velocity-CTD @ dev`.
+All changes relative to upstream `GemstoneGG/Velocity-CTD @ libdeflate`.
+
+---
+
+## 1.3.5 — Minecraft 26.2 support
+
+### Changed
+
+* **Rebased onto current upstream Velocity-CTD.** Upstream retired the `dev` branch; Conduit now
+  tracks the `libdeflate` line, which brings **Minecraft 26.2 (protocol 776)** and 26.1 support
+  along with the rest of upstream's networking work. `scripts/setup.sh`, `scripts/setup.ps1`,
+  `scripts/sync-upstream.sh` and `gradle.properties` now point at `libdeflate`.
+* **Module layout follows upstream's reorganization.** The former `luckperms-integration` module
+  became a `permission-integration` SPI (`permission-integration/spi`) plus a per-provider adapter
+  (`permission-integration/luckperms`), and a new `bootstrap` module was added. `settings.gradle.kts`
+  and the setup scripts were updated to sync and include these modules. Conduit no longer hand-rolls
+  the LuckPerms jar-in-jar embedding in `proxy/build.gradle.kts`; it defers to upstream's built-in
+  permission-integration index while keeping Conduit's bundled-plugin installers.
+
+### Fixed / hardened (overlay re-derivation)
+
+Conduit's file overlays were re-derived on top of the new upstream so they no longer revert
+upstream fixes:
+
+* **Restored upstream's bounded pre-join plugin-message queue** in `ClientPlaySessionHandler`
+  (`enqueueLoginPluginMessage`, per-connection byte/count caps). The previous overlay, based on the
+  old `dev` tree, silently reverted this to an unbounded queue — a memory-exhaustion (DoS) vector on
+  clients that stall the FML/login phase. Conduit's tab-complete cache is layered back on top.
+* **Kept upstream's server reconciliation** (rename detection + in-place player migration) and the
+  metrics `getSessionId()` in `VelocityServer`, rather than reverting to the older evacuate-only
+  reload path. Conduit's branding, virtual-plugin registration, bundled-plugin install hooks and
+  shutdown teardown are re-applied on top.
+* **Kept upstream's consolidated endpoint logging** in `ConnectionManager` while re-applying
+  Conduit's configurable write-buffer watermarks and the raised `SO_BACKLOG` (1024).
 
 ---
 

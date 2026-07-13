@@ -29,6 +29,31 @@ val relocatedLibraries: Configuration by configurations.creating {
 // and the fat shadowJar continues to bundle them.
 configurations.named("implementation") { extendsFrom(relocatedLibraries) }
 
+// Permission integration modules embedded as jar-in-jar resources. Each is shipped at
+// `<permissionIntegrationsResourceDir>/<module-dir-name>.jar` and listed in `integrations.index`,
+// which `PermissionResolverAdapterFactory` reads at runtime to discover and load them. Adding an
+// integration only requires appending its project path here.
+val permissionIntegrations = listOf(
+    ":velocity-permission-integration-luckperms",
+)
+val permissionIntegrationsResourceDir = "META-INF/velocityctd/permission-integration"
+
+// Generates the integrations index listing each embedded integration jar resource (one per line).
+val generatePermissionIntegrationsIndex by tasks.registering {
+    val resourceDir = permissionIntegrationsResourceDir
+    val entries = permissionIntegrations.map { project(it).projectDir.name }
+    inputs.property("entries", entries)
+
+    val outputDir = layout.buildDirectory.dir("generated/permission-integrations")
+    outputs.dir(outputDir)
+
+    doLast {
+        val indexFile = outputDir.get().asFile.resolve("$resourceDir/integrations.index")
+        indexFile.parentFile.mkdirs()
+        indexFile.writeText(entries.joinToString("\n", postfix = "\n") { "$resourceDir/$it.jar" })
+    }
+}
+
 // ── Conduit: bundled spark Velocity profiler ─────────────────────────────────
 // Conduit ships the official lucko/spark Velocity plugin inside the proxy jar and installs it on
 // first run (see BundledSparkInstaller). We download it at build time and verify its checksum so
@@ -72,8 +97,8 @@ val downloadBundledSpark by tasks.registering {
 // ── Conduit: bundled LuckPerms Velocity permission plugin ────────────────────
 // Conduit ships the official LuckPerms Velocity plugin inside the proxy jar and installs it on
 // first run (see BundledLuckPermsInstaller). LuckPerms remains a normal Velocity plugin at runtime;
-// the :velocity-luckperms-integration resolver lights up automatically once it is present. We
-// download it at build time and verify its checksum so the binary never lives in source control.
+// the bundled permission-integration LuckPerms resolver lights up automatically once it is present.
+// We download it at build time and verify its checksum so the binary never lives in source control.
 val bundledLuckPermsUrl = providers.gradleProperty("conduit.luckperms.velocity.url")
 val bundledLuckPermsSha256 = providers.gradleProperty("conduit.luckperms.velocity.sha256")
 val bundledLuckPermsJar = layout.buildDirectory.file("conduit/bundled/luckperms-velocity.jar")
@@ -122,14 +147,17 @@ tasks {
     }
 
     processResources {
-        // Embed :velocity-luckperms-integration as META-INF/velocityctd/integrations/velocity-luckperms-integration.jar
-        val lpJar = project(":velocity-luckperms-integration")
-            .tasks
-            .named<Jar>("jar")
-        from(lpJar.flatMap { it.archiveFile }) {
-            into("META-INF/velocityctd/integrations")
-            rename { "velocity-luckperms-integration.jar" }
+        // Embed each permission integration module as a jar-in-jar at
+        // `<permissionIntegrationsResourceDir>/<module-dir-name>.jar`, alongside the generated index.
+        permissionIntegrations.forEach { path ->
+            val integrationProject = project(path)
+            val integrationJar = integrationProject.tasks.named<Jar>("jar")
+            from(integrationJar.flatMap { it.archiveFile }) {
+                into(permissionIntegrationsResourceDir)
+                rename { "${integrationProject.projectDir.name}.jar" }
+            }
         }
+        from(generatePermissionIntegrationsIndex)
 
         // Conduit: embed the verified spark Velocity jar so it can be installed on first run.
         dependsOn(downloadBundledSpark)
@@ -256,6 +284,7 @@ tasks {
 dependencies {
     implementation(project(":velocity-api"))
     implementation(project(":velocity-native"))
+    implementation(project(":velocity-permission-integration-spi"))
 
     implementation(libs.bundles.log4j)
     implementation(libs.kyori.ansi)
@@ -285,7 +314,6 @@ dependencies {
     implementation(libs.fastutil)
     implementation(platform(libs.adventure.bom))
     implementation(libs.adventure.text.serializer.json.legacy.impl)
-    implementation(libs.adventure.facet)
     implementation(libs.completablefutures)
     implementation(libs.component)
     implementation(libs.nightconfig)

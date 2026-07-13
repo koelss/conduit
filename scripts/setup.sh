@@ -6,7 +6,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 UPSTREAM_REPO="https://github.com/GemstoneGG/Velocity-CTD.git"
-UPSTREAM_BRANCH="dev"
+UPSTREAM_BRANCH="libdeflate"
 UPSTREAM_DIR="$ROOT_DIR/.upstream-velocity"
 CI_MODE=false
 
@@ -33,7 +33,7 @@ fi
 # ── 2. Copy upstream source into our project tree ────────────────────────────
 echo "==> Syncing upstream source files..."
 
-for module in api native proxy luckperms-integration build-logic config; do
+for module in api native proxy bootstrap permission-integration build-logic config; do
   if [[ -d "$UPSTREAM_DIR/$module" ]]; then
     rsync -a --delete \
       --exclude='**/KnownPacksPacket.java' \

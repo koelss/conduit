@@ -9,7 +9,7 @@ $ErrorActionPreference = "Stop"
 $ScriptDir  = Split-Path -Parent $MyInvocation.MyCommand.Path
 $RootDir    = Split-Path -Parent $ScriptDir
 $UpstreamRepo   = "https://github.com/GemstoneGG/Velocity-CTD.git"
-$UpstreamBranch = "dev"
+$UpstreamBranch = "libdeflate"
 $UpstreamDir    = Join-Path $RootDir ".upstream-velocity"
 
 Write-Host "==> Conduit setup"
@@ -65,7 +65,7 @@ $excludeFiles = @(
     "HandshakeSessionHandler.java"
 )
 
-foreach ($module in @("api", "native", "proxy", "luckperms-integration", "build-logic", "config")) {
+foreach ($module in @("api", "native", "proxy", "bootstrap", "permission-integration", "build-logic", "config")) {
     $src = Join-Path $UpstreamDir $module
     $dst = Join-Path $RootDir $module
     if (Test-Path $src) {

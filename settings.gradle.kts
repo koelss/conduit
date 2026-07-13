@@ -30,12 +30,22 @@ sequenceOf(
     "api",
     "native",
     "proxy",
-    "luckperms-integration",
+    "bootstrap",
 ).forEach {
     val project = ":velocity-$it"
     include(project)
     project(project).projectDir = file(it)
 }
+
+// Permission integration modules (upstream reorganized the former luckperms-integration
+// module into a permission-integration SPI plus per-provider adapters).
+val permissionIntegrationSpi = ":velocity-permission-integration-spi"
+include(permissionIntegrationSpi)
+project(permissionIntegrationSpi).projectDir = file("permission-integration/spi")
+
+val permissionIntegrationLuckperms = ":velocity-permission-integration-luckperms"
+include(permissionIntegrationLuckperms)
+project(permissionIntegrationLuckperms).projectDir = file("permission-integration/luckperms")
 
 val deprecatedConfigurateModule = ":deprecated-configurate3"
 include(deprecatedConfigurateModule)

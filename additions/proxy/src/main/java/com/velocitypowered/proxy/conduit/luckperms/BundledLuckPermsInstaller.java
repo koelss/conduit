@@ -30,7 +30,7 @@ import java.util.stream.Stream;
  *
  * <p>LuckPerms remains a normal Velocity plugin at runtime. Conduit only ships the official shaded
  * LuckPerms-Velocity jar and extracts it before Velocity scans {@code plugins/}. Once present, the
- * {@code velocity-luckperms-integration} permission resolver activates automatically because the
+ * {@code velocity-permission-integration-luckperms} resolver activates automatically because the
  * LuckPerms API is then on the classpath.
  */
 public final class BundledLuckPermsInstaller {
