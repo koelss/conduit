@@ -12,6 +12,9 @@ All changes relative to upstream `GemstoneGG/Velocity-CTD @ libdeflate`.
   tracks the `libdeflate` line, which brings **Minecraft 26.2 (protocol 776)** and 26.1 support
   along with the rest of upstream's networking work. `scripts/setup.sh`, `scripts/setup.ps1`,
   `scripts/sync-upstream.sh` and `gradle.properties` now point at `libdeflate`.
+* **Build now requires JDK 25.** Upstream moved its toolchain and javadoc source level to Java 25;
+  Conduit's root toolchain and the CI workflow were bumped to match. Runtime still targets the same
+  JVM upstream does.
 * **Module layout follows upstream's reorganization.** The former `luckperms-integration` module
   became a `permission-integration` SPI (`permission-integration/spi`) plus a per-provider adapter
   (`permission-integration/luckperms`), and a new `bootstrap` module was added. `settings.gradle.kts`

@@ -55,7 +55,7 @@ On first run, Conduit generates a `conduit.toml` file alongside `velocity.toml` 
 
 ### Build from source
 
-**Prerequisites:** Java 21+, Git
+**Prerequisites:** Java 25+, Git
 
 #### macOS / Linux
 
