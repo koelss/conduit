@@ -244,6 +244,36 @@ modlist-enabled = true
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# [update] — Update checker
+# ─────────────────────────────────────────────────────────────────────────────
+# Conduit can check GitHub Releases for a newer version. The check runs
+# asynchronously after startup, never blocks the proxy, caches its result, and
+# degrades quietly if GitHub is unreachable or rate-limited.
+[update]
+
+# Master switch for the whole update checker.
+enabled = true
+
+# Log a single line to the console at startup summarising the result.
+notify-on-startup = true
+
+# Tell players holding `conduit.update.notify` about a newer release when they
+# join.  Ordinary players never see this message.
+notify-on-join = true
+
+# The GitHub repository (owner/name) whose Releases are compared against the
+# running build.  Semantic-version tags such as `v1.3.5` are understood.
+github-repository = "tame-gg/conduit"
+
+# Whether pre-releases count as upgrade targets.  A pre-release build always
+# considers newer pre-releases regardless of this setting.
+include-prereleases = false
+
+# How long (minutes) a computed result is reused before a background refresh.
+cache-minutes = 360
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # [spark] — Bundled profiler
 # ─────────────────────────────────────────────────────────────────────────────
 [spark]

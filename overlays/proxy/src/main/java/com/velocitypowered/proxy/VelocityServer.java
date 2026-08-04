@@ -150,7 +150,10 @@ import org.jetbrains.annotations.UnmodifiableView;
 @SuppressWarnings({"unchecked"})
 public class VelocityServer implements ProxyServer, ForwardingAudience {
 
-  public static final String VELOCITY_URL = "https://github.com/GemstoneGG/Velocity-CTD";
+  // Conduit: user-facing project links. The field name is kept as VELOCITY_URL for source
+  // compatibility with upstream call sites, but it now points at the Conduit project so the
+  // GitHub link shown in `/velocity info` and on the virtual plugin identifies Conduit.
+  public static final String VELOCITY_URL = "https://github.com/tame-gg/conduit";
   public static final String DISCORD_URL = "https://discord.gg/beer";
 
   private static final Logger LOGGER = LogManager.getLogger(VelocityServer.class);
@@ -337,11 +340,11 @@ public class VelocityServer implements ProxyServer, ForwardingAudience {
   public ProxyVersion getVersion() {
     Package pkg = VelocityServer.class.getPackage();
     // Conduit: brand the proxy so /velocity version and the server list report Conduit.
-    String implName = "Conduit-CTD";
+    String implName = "Conduit";
     String implVersion = Optional.ofNullable(pkg)
         .map(Package::getImplementationVersion)
         .orElse("<unknown>");
-    String implVendor = "Conduit, based on Velocity-CTD";
+    String implVendor = "Conduit Contributors";
 
     return new ProxyVersion(implName, implVendor, implVersion);
   }
@@ -349,9 +352,10 @@ public class VelocityServer implements ProxyServer, ForwardingAudience {
   private VelocityPluginContainer createVirtualPlugin() {
     ProxyVersion version = getVersion();
     PluginDescription description = new VelocityPluginDescription(
-        "velocityctd", version.getName(), version.getVersion(), "The Velocity-CTD proxy",
+        "velocityctd", version.getName(), version.getVersion(), "The Conduit proxy",
             (version.getName().equals("Velocity") || version.getName().equals("Velocity-CTD")
-                || version.getName().equals("Conduit-CTD")) ? VELOCITY_URL : null,
+                || version.getName().equals("Conduit-CTD") || version.getName().equals("Conduit"))
+                ? VELOCITY_URL : null,
             ImmutableList.of(version.getVendor()), Collections.emptyList(), null);
     VelocityPluginContainer container = new VelocityPluginContainer(description);
     container.setInstance(VelocityVirtualPlugin.INSTANCE);
@@ -362,7 +366,7 @@ public class VelocityServer implements ProxyServer, ForwardingAudience {
     ProxyVersion version = getVersion();
     PluginDescription description = new VelocityPluginDescription(
         "conduit", version.getName(), version.getVersion(),
-        "Conduit-CTD — Conduit extensions on top of Velocity-CTD",
+        "Conduit proxy extensions",
         "https://github.com/tame-gg/conduit",
         ImmutableList.of(version.getVendor()), Collections.emptyList(), null);
     VelocityPluginContainer container = new VelocityPluginContainer(description);
@@ -529,7 +533,7 @@ public class VelocityServer implements ProxyServer, ForwardingAudience {
       configuration = VelocityConfiguration.read(configPath);
 
       if (!configuration.validate()) {
-        LOGGER.error("Your configuration is invalid. Velocity will not start up until the errors "
+        LOGGER.error("Your configuration is invalid. The proxy will not start up until the errors "
             + "are resolved.");
         LogManager.shutdown();
         System.exit(1);
@@ -719,7 +723,7 @@ public class VelocityServer implements ProxyServer, ForwardingAudience {
       if (meta.getPlugin() == VelocityVirtualPlugin.INSTANCE) {
         commandManager.unregister(meta);
       } else {
-        LOGGER.debug("Could not unregister command /{}, command not registered by Velocity.", command);
+        LOGGER.debug("Could not unregister command /{}, command not registered by the proxy.", command);
       }
     }
   }

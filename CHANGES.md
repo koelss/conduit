@@ -4,6 +4,49 @@ All changes relative to upstream `GemstoneGG/Velocity-CTD @ libdeflate`.
 
 ---
 
+## Unreleased — Conduit branding & update checker
+
+### Changed — the proxy now identifies itself as Conduit
+
+* **Version/identity strings say “Conduit”.** `VelocityServer#getVersion` reports the implementation
+  name `Conduit` (was `Conduit-CTD`) and vendor `Conduit Contributors` (was
+  `Conduit, based on Velocity-CTD`). This flows through the startup banner (`Booting up Conduit …`),
+  the server-list/ping identity, `/velocity info`, and the virtual-plugin descriptions. Package
+  names, the `com.velocityctd` internal namespace, APIs, license/copyright headers and historical
+  comments are deliberately left untouched.
+* **Jar manifest metadata rebranded** in `overlays/proxy/build.gradle.kts`:
+  `Implementation-Title = Conduit`, `Implementation-Vendor = Conduit Contributors`.
+* **User-facing project links point at Conduit.** `VelocityServer.VELOCITY_URL` (the GitHub link in
+  `/velocity info` and on the virtual plugin) and the bootstrap fat-jar download hint now reference
+  `github.com/tame-gg/conduit`.
+* **Console/command strings de-Velocity’d** where they identify the running software: the invalid-
+  config error, the `/velocity reload` success/failure messages, and the `/velocity info` update
+  line. The `velocity.toml` filename and the “Velocity forwarding” mode name are kept for
+  compatibility.
+
+### Changed — development-build message
+
+* Removed the legacy upstream `VersionChecker` startup call in `Velocity.java`, which logged
+  *“You are running a development build of Velocity-CTD”* and compared against Velocity-CTD’s
+  releases. The `/velocity info` development-build notice now reads *“…development build of
+  Conduit”* and is still gated on the genuine `ProxyVersion#isDevelopmentVersion()` runtime check —
+  release builds never show it.
+
+### Added — modular update checker (`com.velocitypowered.proxy.conduit.update`)
+
+* Checks **GitHub Releases** for a newer Conduit version, fully asynchronously — it never blocks
+  startup, caches its result (default 6 h), fails soft on network errors, respects GitHub rate
+  limits, compares **semantic versions** correctly, and ignores pre-releases unless the running
+  build is itself a pre-release.
+* Notifies staff holding `conduit.update.notify` when they join (running version, latest version,
+  whether outdated, exact number of releases behind, and a link to the release), and logs one
+  console summary at startup.
+* Deliberately **provider-based** (`UpdateProvider` → `GitHubReleaseProvider`) so another source can
+  be added without touching the comparison or caching logic. Configurable via a new `[update]`
+  section in `conduit.toml`.
+
+---
+
 ## 1.3.5 — Minecraft 26.2 support
 
 ### Changed

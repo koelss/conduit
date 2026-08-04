@@ -114,6 +114,14 @@ public final class ConduitConfig {
   private final boolean adminCommandsEnabled;
   private final boolean modListCommandEnabled;
 
+  // ── Update section ────────────────────────────────────────────────────────
+  private final boolean updateCheckEnabled;
+  private final boolean updateNotifyOnStartup;
+  private final boolean updateNotifyOnJoin;
+  private final String updateRepository;
+  private final boolean updateIncludePrereleases;
+  private final int updateCacheMinutes;
+
   // ── Spark section ─────────────────────────────────────────────────────────
   private final boolean sparkBundleEnabled;
 
@@ -181,6 +189,13 @@ public final class ConduitConfig {
 
     this.adminCommandsEnabled = b.adminCommandsEnabled;
     this.modListCommandEnabled = b.modListCommandEnabled;
+
+    this.updateCheckEnabled = b.updateCheckEnabled;
+    this.updateNotifyOnStartup = b.updateNotifyOnStartup;
+    this.updateNotifyOnJoin = b.updateNotifyOnJoin;
+    this.updateRepository = b.updateRepository;
+    this.updateIncludePrereleases = b.updateIncludePrereleases;
+    this.updateCacheMinutes = b.updateCacheMinutes;
 
     this.sparkBundleEnabled = b.sparkBundleEnabled;
 
@@ -318,6 +333,16 @@ public final class ConduitConfig {
     if (commands != null) {
       b.adminCommandsEnabled = commands.getOrElse("admin-enabled", true);
       b.modListCommandEnabled = commands.getOrElse("modlist-enabled", true);
+    }
+
+    CommentedConfig update = toml.get("update");
+    if (update != null) {
+      b.updateCheckEnabled = update.getOrElse("enabled", true);
+      b.updateNotifyOnStartup = update.getOrElse("notify-on-startup", true);
+      b.updateNotifyOnJoin = update.getOrElse("notify-on-join", true);
+      b.updateRepository = update.getOrElse("github-repository", "tame-gg/conduit");
+      b.updateIncludePrereleases = update.getOrElse("include-prereleases", false);
+      b.updateCacheMinutes = update.getIntOrElse("cache-minutes", 360);
     }
 
     CommentedConfig spark = toml.get("spark");
@@ -705,6 +730,44 @@ public final class ConduitConfig {
     return modListCommandEnabled;
   }
 
+  // ── Update getters ────────────────────────────────────────────────────────
+
+  /** Returns whether Conduit's update checker runs at all. */
+  public boolean isUpdateCheckEnabled() {
+    return updateCheckEnabled;
+  }
+
+  /** Returns whether a single update summary is logged to the console at startup. */
+  public boolean isUpdateNotifyOnStartup() {
+    return updateNotifyOnStartup;
+  }
+
+  /**
+   * Returns whether players holding {@code conduit.update.notify} are told about a newer release
+   * when they join.
+   */
+  public boolean isUpdateNotifyOnJoin() {
+    return updateNotifyOnJoin;
+  }
+
+  /** Returns the {@code owner/repo} GitHub slug the update checker compares releases against. */
+  public String getUpdateRepository() {
+    return updateRepository;
+  }
+
+  /**
+   * Returns whether pre-releases are considered upgrade targets. Pre-release builds always
+   * consider newer pre-releases regardless of this flag.
+   */
+  public boolean isUpdateIncludePrereleases() {
+    return updateIncludePrereleases;
+  }
+
+  /** Returns how long, in minutes, a computed update result is cached before a refresh. */
+  public int getUpdateCacheMinutes() {
+    return updateCacheMinutes;
+  }
+
   // ── Spark getters ─────────────────────────────────────────────────────────
 
   /** Returns whether Conduit should extract the bundled spark plugin on startup. */
@@ -784,6 +847,13 @@ public final class ConduitConfig {
 
     boolean adminCommandsEnabled = true;
     boolean modListCommandEnabled = true;
+
+    boolean updateCheckEnabled = true;
+    boolean updateNotifyOnStartup = true;
+    boolean updateNotifyOnJoin = true;
+    String updateRepository = "tame-gg/conduit";
+    boolean updateIncludePrereleases = false;
+    int updateCacheMinutes = 360;
 
     boolean sparkBundleEnabled = true;
 

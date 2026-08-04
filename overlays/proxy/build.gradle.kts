@@ -138,8 +138,8 @@ val downloadBundledLuckPerms by tasks.registering {
 tasks {
     jar {
         manifest {
-            attributes["Implementation-Title"] = "Velocity-CTD"
-            attributes["Implementation-Vendor"] = "Velocity(-CTD) Contributors"
+            attributes["Implementation-Title"] = "Conduit"
+            attributes["Implementation-Vendor"] = "Conduit Contributors"
             attributes["Multi-Release"] = "true"
             attributes["Enable-Native-Access"] = "ALL-UNNAMED"
             attributes["Enable-Final-Field-Mutation"] = "ALL-UNNAMED"

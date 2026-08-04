@@ -39,6 +39,9 @@ import com.velocitypowered.proxy.conduit.security.ChannelGuard;
 import com.velocitypowered.proxy.conduit.shutdown.GracefulShutdown;
 import com.velocitypowered.proxy.conduit.spark.BundledSparkInstaller;
 import com.velocitypowered.proxy.conduit.spark.BundledSparkInstaller.InstallResult;
+import com.velocitypowered.proxy.conduit.update.GitHubReleaseProvider;
+import com.velocitypowered.proxy.conduit.update.UpdateChecker;
+import com.velocitypowered.proxy.conduit.update.UpdateNotifier;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Path;
@@ -76,6 +79,8 @@ public final class Conduit {
   private final ModCompatibilityRouter modCompatibilityRouter;
   private final MaintenanceManager maintenanceManager;
   private volatile ConduitMetricsServer metricsServer;
+  private final UpdateChecker updateChecker;
+  private final UpdateNotifier updateNotifier;
   private volatile boolean attackModeEnabled;
 
   private Conduit(Path configDir) {
@@ -125,6 +130,20 @@ public final class Conduit {
             config.getMaintenanceKickMessage(), config.getMaintenanceMotd(),
             config.getMaintenanceAllowlist())
         : MaintenanceManager.DISABLED;
+
+    if (config.isUpdateCheckEnabled()) {
+      GitHubReleaseProvider provider = new GitHubReleaseProvider(
+          config.getUpdateRepository(),
+          "Conduit/" + conduitVersion + " (+https://github.com/tame-gg/conduit)");
+      this.updateChecker = new UpdateChecker(provider, conduitVersion,
+          config.isUpdateIncludePrereleases(),
+          config.getUpdateCacheMinutes() * 60_000L);
+      this.updateNotifier = config.isUpdateNotifyOnJoin()
+          ? new UpdateNotifier(updateChecker) : null;
+    } else {
+      this.updateChecker = null;
+      this.updateNotifier = null;
+    }
 
     logStartupSummary();
   }
@@ -183,6 +202,15 @@ public final class Conduit {
     }
     if (config.isModListCommandEnabled()) {
       ModListCommand.register(proxy, plugin);
+    }
+
+    if (updateChecker != null) {
+      if (updateNotifier != null) {
+        updateNotifier.register(plugin, proxy);
+      }
+      if (config.isUpdateNotifyOnStartup()) {
+        updateChecker.checkAsync();
+      }
     }
 
     logger.info("[Conduit] All subsystems started against proxy.");
@@ -399,6 +427,14 @@ public final class Conduit {
   }
 
   /**
+   * Returns the update checker, or {@code null} when update checking is disabled in
+   * {@code conduit.toml}.
+   */
+  public UpdateChecker getUpdateChecker() {
+    return updateChecker;
+  }
+
+  /**
    * Stops background work owned by Conduit (health-checker scheduler, etc.).
    * Idempotent and safe to call even if {@link #start} was never invoked.
    * Intended to be called from {@code VelocityServer.shutdown()}.
@@ -453,6 +489,9 @@ public final class Conduit {
         config.getMaintenanceAllowlist().size());
     logger.info("[Conduit]   admin-commands          = {}", config.isAdminCommandsEnabled());
     logger.info("[Conduit]   modlist-command         = {}", config.isModListCommandEnabled());
+    logger.info("[Conduit]   update-check            = {} (repo {}, notify-join {})",
+        config.isUpdateCheckEnabled(), config.getUpdateRepository(),
+        config.isUpdateNotifyOnJoin());
   }
 
   private static String loadVersion() {
