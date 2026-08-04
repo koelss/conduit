@@ -356,7 +356,8 @@ public class VelocityServer implements ProxyServer, ForwardingAudience {
             (version.getName().equals("Velocity") || version.getName().equals("Velocity-CTD")
                 || version.getName().equals("Conduit-CTD") || version.getName().equals("Conduit"))
                 ? VELOCITY_URL : null,
-            ImmutableList.of(version.getVendor()), Collections.emptyList(), null);
+            ImmutableList.of(version.getVendor()), Collections.emptyList(),
+            Collections.emptyList(), null);
     VelocityPluginContainer container = new VelocityPluginContainer(description);
     container.setInstance(VelocityVirtualPlugin.INSTANCE);
     return container;
@@ -368,7 +369,8 @@ public class VelocityServer implements ProxyServer, ForwardingAudience {
         "conduit", version.getName(), version.getVersion(),
         "Conduit proxy extensions",
         "https://github.com/tame-gg/conduit",
-        ImmutableList.of(version.getVendor()), Collections.emptyList(), null);
+        ImmutableList.of(version.getVendor()), Collections.emptyList(),
+        Collections.emptyList(), null);
     VelocityPluginContainer container = new VelocityPluginContainer(description);
     container.setInstance(VelocityVirtualPlugin.INSTANCE);
     return container;
