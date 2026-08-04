@@ -58,12 +58,14 @@ public final class UpdateNotifier {
    */
   @Subscribe
   public void onPostLogin(PostLoginEvent event) {
-    Player player = event.getPlayer();
-    if (!player.hasPermission(PERMISSION)) {
-      return;
-    }
+    // Cheap, O(1) cached read first: when there is no update available — the overwhelmingly common
+    // case — return before doing a permission lookup, so ordinary logins pay nothing.
     UpdateStatus status = updateChecker.getStatus();
     if (!status.hasUpdate()) {
+      return;
+    }
+    Player player = event.getPlayer();
+    if (!player.hasPermission(PERMISSION)) {
       return;
     }
     player.sendMessage(buildMessage(status));

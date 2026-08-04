@@ -318,24 +318,6 @@ The overlay surface is intentionally small so merges stay straightforward.
 3. Add the filename to the `--exclude` / `/XF` list in both `setup.sh` and `setup.ps1` so the upstream rsync does not overwrite it.
 4. Run the appropriate setup script to re-apply everything and verify the build.
 
-### Cutting a release
-
-Bump `conduit.version` in `gradle.properties`, commit, then tag `main`:
-
-```bash
-./scripts/release.sh              # tags v<conduit.version> on origin/main and pushes it
-```
-
-```powershell
-.\scripts\release.ps1             # same, for Windows
-```
-
-The scripts read the version from `gradle.properties`, create an annotated `v<version>` tag on
-`origin/main`, and push it. Pushing a `v*` tag triggers the **Publish release** step in
-`.github/workflows/build.yml`, which builds `conduit-<version>.jar` and creates the GitHub Release
-with generated notes — no manual upload needed. The scripts refuse to run if the tag already exists,
-so bump the version first.
-
 ---
 
 ## License
