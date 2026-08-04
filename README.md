@@ -37,6 +37,7 @@ backends.
 | **Structured diagnostics** | Optional lock-free counters and structured log output for profiling; zero overhead when disabled. |
 | **Bundled spark profiler** | Ships the official `lucko/spark` Velocity plugin and installs it as `/sparkv` / `/sparkvelocity`. Skips if an operator-managed spark jar is present, and can be disabled via `conduit.toml → [spark] → bundle-enabled`. |
 | **Native LuckPerms** | Ships the official LuckPerms Velocity plugin and installs it on first run, so permissions, groups, and prefixes work out of the box. Skips if an operator-managed LuckPerms jar is present, and can be disabled via `conduit.toml → [luckperms] → bundle-enabled`. CTD's LuckPerms permission resolver then activates automatically. |
+| **Update checker** | Asynchronously checks GitHub Releases for a newer Conduit version, caches the result, compares semantic versions, and tells `conduit.update.notify` staff how many releases they are behind on join. Modular provider design; configurable via `conduit.toml → [update]`. |
 | **Operator commands** | `/conduit reload \| diagnostics \| health \| doctor \| unblock <ip> \| cache invalidate <ip>` and `/modlist [player]` — no extra plugin needed. |
 
 ---
@@ -203,6 +204,38 @@ bundle-enabled                  = true      # extract bundled LuckPerms plugin; 
 
 The `conduit.channelguard.bypass` permission exempts staff accounts from `ChannelGuard` blocks.
 The `conduit.maintenance.bypass` permission lets staff connect while maintenance mode is active.
+The `conduit.update.notify` permission makes staff see the update notice on join (see below).
+
+### Update notifications
+
+Conduit checks [GitHub Releases](https://github.com/tame-gg/conduit/releases) for a newer version
+and lets your staff know when one is out. The check is designed to stay out of the way:
+
+- It runs **asynchronously** after startup and **never blocks** the proxy from accepting players.
+- Results are **cached** (6 hours by default) and the check **fails quietly** if GitHub is
+  unreachable or rate-limited — it never throws into a login or a command.
+- Versions are compared using **semantic versioning**, and **pre-releases are ignored** unless the
+  build you are running is itself a pre-release.
+
+When an update is available, players holding the `conduit.update.notify` permission see a one-line
+notice on join — the running version, the latest version, exactly how many releases behind you are
+(e.g. *"You are 5 release(s) behind"*), and a clickable link to the release. A single summary is
+also written to the console at startup, and `/velocity info` reflects the same status. Ordinary
+players never see any of this.
+
+Configure it under `[update]` in `conduit.toml`:
+
+| Key | Default | Description |
+|-----|---------|-------------|
+| `enabled` | `true` | Master switch for the whole update checker. |
+| `notify-on-startup` | `true` | Log a single update summary to the console at startup. |
+| `notify-on-join` | `true` | Notify `conduit.update.notify` holders when they join. |
+| `github-repository` | `tame-gg/conduit` | The `owner/name` repository whose Releases are compared. |
+| `include-prereleases` | `false` | Treat pre-releases as upgrade targets (forced on for pre-release builds). |
+| `cache-minutes` | `360` | How long a result is reused before a background refresh. |
+
+The checker is provider-based (`UpdateProvider` → `GitHubReleaseProvider`), so an alternative update
+source can be added later without changing the comparison or notification logic.
 
 ### Migrating from KnownPacksFix
 
