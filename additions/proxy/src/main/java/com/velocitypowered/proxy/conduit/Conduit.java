@@ -40,6 +40,7 @@ import com.velocitypowered.proxy.conduit.shutdown.GracefulShutdown;
 import com.velocitypowered.proxy.conduit.spark.BundledSparkInstaller;
 import com.velocitypowered.proxy.conduit.spark.BundledSparkInstaller.InstallResult;
 import com.velocitypowered.proxy.conduit.update.GitHubReleaseProvider;
+import com.velocitypowered.proxy.conduit.update.SemanticVersion;
 import com.velocitypowered.proxy.conduit.update.UpdateChecker;
 import com.velocitypowered.proxy.conduit.update.UpdateNotifier;
 import java.io.IOException;
@@ -424,6 +425,22 @@ public final class Conduit {
   /** Returns the Conduit build version string. */
   public String getConduitVersion() {
     return conduitVersion;
+  }
+
+  /**
+   * Returns whether this is a genuine development build of Conduit.
+   *
+   * <p>Unlike the inherited upstream {@code ProxyVersion#isDevelopmentVersion()} — which keys off
+   * the Velocity {@code -SNAPSHOT} version string and is therefore always {@code true} for Conduit
+   * regardless of release status — this is driven by Conduit's own version metadata. A released or
+   * normally-built jar embeds a real semantic {@code conduit.version} (e.g. {@code 1.4.0}); only a
+   * build with no embedded version (the {@code dev} fallback, i.e. run without the generated
+   * {@code conduit-build.properties}) is treated as a development build.
+   *
+   * @return {@code true} only when no semantic Conduit version is embedded
+   */
+  public boolean isDevelopmentBuild() {
+    return SemanticVersion.parse(conduitVersion).isEmpty();
   }
 
   /**

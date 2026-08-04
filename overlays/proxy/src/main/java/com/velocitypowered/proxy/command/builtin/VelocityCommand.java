@@ -437,14 +437,11 @@ public class VelocityCommand implements BuiltinCommandDefinition {
         infoBuilder.appendNewline().append(embellishment);
 
         infoBuilder.appendNewline();
-        // Conduit: report status from Conduit's own (GitHub Releases) update checker instead of
-        // the removed upstream Velocity-CTD checker, and brand the development-build notice.
-        if (version.isDevelopmentVersion()) {
-          infoBuilder.append(Component.text(
-              "You are running a development build of Conduit.", NamedTextColor.RED));
-        } else {
-          infoBuilder.append(conduitVersionStatus());
-        }
+        // Conduit: report the development-build notice and update status from Conduit's own
+        // metadata (see conduitVersionStatus). The upstream ProxyVersion#isDevelopmentVersion()
+        // keys off the inherited Velocity -SNAPSHOT string and is always true for Conduit, so it
+        // cannot be used to decide whether this is really a development build.
+        infoBuilder.append(conduitVersionStatus());
 
         return infoBuilder.build();
       }, 10, TimeUnit.MINUTES);
@@ -467,6 +464,12 @@ public class VelocityCommand implements BuiltinCommandDefinition {
         conduit = Conduit.get();
       } catch (IllegalStateException notReady) {
         return Component.empty();
+      }
+      // Only genuine development builds (no embedded semantic conduit.version) get the notice;
+      // a normal/release build never does.
+      if (conduit.isDevelopmentBuild()) {
+        return Component.text("You are running a development build of Conduit.",
+            NamedTextColor.RED);
       }
       if (conduit.getUpdateChecker() == null) {
         return Component.empty();
