@@ -18,12 +18,15 @@
 package com.velocitypowered.proxy.conduit;
 
 import com.electronwill.nightconfig.core.CommentedConfig;
-import com.electronwill.nightconfig.core.file.CommentedFileConfig;
+import com.electronwill.nightconfig.core.io.WritingMode;
 import com.electronwill.nightconfig.toml.TomlFormat;
+import com.electronwill.nightconfig.toml.TomlWriter;
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.Reader;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -84,18 +87,24 @@ final class ConduitConfigMigrator {
       return;
     }
 
-    CommentedFileConfig user = CommentedFileConfig.of(file);
     try {
-      user.load();
+      CommentedConfig user;
+      try (Reader reader = Files.newBufferedReader(file, StandardCharsets.UTF_8)) {
+        user = TomlFormat.instance().createParser().parse(reader);
+      }
 
       List<String> renamed = applyRenames(user);
       List<String> added = new ArrayList<>();
       fillMissing(defaults, user, List.of(), added);
 
       if (added.isEmpty() && renamed.isEmpty()) {
+        // Nothing to do — leave the file byte-for-byte untouched (no reformatting).
         return;
       }
-      user.save();
+      // Rewrite the whole file: existing keys, values, and comments are carried through the parse,
+      // and only the missing options are added. This is the point where minor reformatting (indent,
+      // comment placement) may occur — hence the early return above for the unchanged case.
+      new TomlWriter().write(user, file, WritingMode.REPLACE, StandardCharsets.UTF_8);
       if (!renamed.isEmpty()) {
         logger.info("[Conduit] conduit.toml: migrated {} renamed option(s): {}",
             renamed.size(), String.join(", ", renamed));
@@ -104,15 +113,9 @@ final class ConduitConfigMigrator {
         logger.info("[Conduit] conduit.toml: added {} new option(s) with defaults: {}",
             added.size(), String.join(", ", added));
       }
-    } catch (RuntimeException e) {
+    } catch (RuntimeException | IOException e) {
       logger.warn("[Conduit] Could not auto-update conduit.toml ({}); "
           + "leaving it unchanged.", e.toString());
-    } finally {
-      try {
-        user.close();
-      } catch (RuntimeException ignored) {
-        // best-effort
-      }
     }
   }
 
