@@ -114,6 +114,12 @@ public final class ConduitConfig {
   private final boolean adminCommandsEnabled;
   private final boolean modListCommandEnabled;
 
+  // ── Forwarding section ────────────────────────────────────────────────────
+  private final boolean commandForwardingEnabled;
+  private final String commandForwardingChannel;
+  private final boolean commandForwardingRequirePermission;
+  private final boolean commandForwardingLog;
+
   // ── Update section ────────────────────────────────────────────────────────
   private final boolean updateCheckEnabled;
   private final boolean updateNotifyOnStartup;
@@ -190,6 +196,11 @@ public final class ConduitConfig {
     this.adminCommandsEnabled = b.adminCommandsEnabled;
     this.modListCommandEnabled = b.modListCommandEnabled;
 
+    this.commandForwardingEnabled = b.commandForwardingEnabled;
+    this.commandForwardingChannel = b.commandForwardingChannel;
+    this.commandForwardingRequirePermission = b.commandForwardingRequirePermission;
+    this.commandForwardingLog = b.commandForwardingLog;
+
     this.updateCheckEnabled = b.updateCheckEnabled;
     this.updateNotifyOnStartup = b.updateNotifyOnStartup;
     this.updateNotifyOnJoin = b.updateNotifyOnJoin;
@@ -227,6 +238,13 @@ public final class ConduitConfig {
       } else {
         extractDefault(file);
       }
+    }
+
+    // Bring an existing file forward: add any options introduced by newer Conduit versions with
+    // their defaults, without touching values the operator already set. A freshly-extracted file
+    // is already complete, so this is a no-op on first run.
+    if (file.getFileName().toString().equals("conduit.toml")) {
+      ConduitConfigMigrator.migrate(file);
     }
 
     // We construct the FileConfig without try-with-resources because CommentedFileConfig#close()
@@ -335,6 +353,15 @@ public final class ConduitConfig {
       b.modListCommandEnabled = commands.getOrElse("modlist-enabled", true);
     }
 
+    CommentedConfig forwarding = toml.get("forwarding");
+    if (forwarding != null) {
+      b.commandForwardingEnabled = forwarding.getOrElse("command-forwarding", false);
+      b.commandForwardingChannel = forwarding.getOrElse("channel",
+          "velocity_command_forward:main");
+      b.commandForwardingRequirePermission = forwarding.getOrElse("require-permission", false);
+      b.commandForwardingLog = forwarding.getOrElse("log-forwarded-commands", true);
+    }
+
     CommentedConfig update = toml.get("update");
     if (update != null) {
       b.updateCheckEnabled = update.getOrElse("enabled", true);
@@ -411,6 +438,14 @@ public final class ConduitConfig {
     requirePositive("metrics.http-port", b.metricsHttpPort);
     if (b.metricsHttpPath == null || !b.metricsHttpPath.startsWith("/")) {
       throw new IllegalArgumentException("conduit.toml: metrics.http-path must start with '/'");
+    }
+    if (b.commandForwardingEnabled) {
+      String channel = b.commandForwardingChannel;
+      int colon = channel == null ? -1 : channel.indexOf(':');
+      if (colon <= 0 || colon == channel.length() - 1) {
+        throw new IllegalArgumentException("conduit.toml: forwarding.channel must be of the form"
+            + " 'namespace:path' — got '" + channel + "'");
+      }
     }
     String action = b.channelGuardAction;
     if (action == null
@@ -730,6 +765,31 @@ public final class ConduitConfig {
     return modListCommandEnabled;
   }
 
+  // ── Forwarding getters ────────────────────────────────────────────────────
+
+  /** Returns whether backend-to-proxy command forwarding is enabled. */
+  public boolean isCommandForwardingEnabled() {
+    return commandForwardingEnabled;
+  }
+
+  /** Returns the plugin-messaging channel used for command forwarding. */
+  public String getCommandForwardingChannel() {
+    return commandForwardingChannel;
+  }
+
+  /**
+   * Returns whether player-context forwarded commands require the
+   * {@code conduit.forward.execute} permission.
+   */
+  public boolean isCommandForwardingRequirePermission() {
+    return commandForwardingRequirePermission;
+  }
+
+  /** Returns whether backend-supplied log lines for forwarded commands are echoed to the console. */
+  public boolean isCommandForwardingLog() {
+    return commandForwardingLog;
+  }
+
   // ── Update getters ────────────────────────────────────────────────────────
 
   /** Returns whether Conduit's update checker runs at all. */
@@ -847,6 +907,11 @@ public final class ConduitConfig {
 
     boolean adminCommandsEnabled = true;
     boolean modListCommandEnabled = true;
+
+    boolean commandForwardingEnabled = false;
+    String commandForwardingChannel = "velocity_command_forward:main";
+    boolean commandForwardingRequirePermission = false;
+    boolean commandForwardingLog = true;
 
     boolean updateCheckEnabled = true;
     boolean updateNotifyOnStartup = true;

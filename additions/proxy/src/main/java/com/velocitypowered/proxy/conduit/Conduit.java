@@ -23,6 +23,7 @@ import com.velocitypowered.proxy.conduit.command.ConduitCommand;
 import com.velocitypowered.proxy.conduit.command.ModListCommand;
 import com.velocitypowered.proxy.conduit.diagnostics.ConduitDiagnostics;
 import com.velocitypowered.proxy.conduit.diagnostics.ConduitMetricsServer;
+import com.velocitypowered.proxy.conduit.forward.CommandForwarder;
 import com.velocitypowered.proxy.conduit.health.BackendHealthChecker;
 import com.velocitypowered.proxy.conduit.health.FallbackRouter;
 import com.velocitypowered.proxy.conduit.luckperms.BundledLuckPermsInstaller;
@@ -79,6 +80,7 @@ public final class Conduit {
   private final ChannelGuard channelGuard;
   private final ModCompatibilityRouter modCompatibilityRouter;
   private final MaintenanceManager maintenanceManager;
+  private final CommandForwarder commandForwarder;
   private volatile ConduitMetricsServer metricsServer;
   private final UpdateChecker updateChecker;
   private final UpdateNotifier updateNotifier;
@@ -131,6 +133,10 @@ public final class Conduit {
             config.getMaintenanceKickMessage(), config.getMaintenanceMotd(),
             config.getMaintenanceAllowlist())
         : MaintenanceManager.DISABLED;
+    this.commandForwarder = config.isCommandForwardingEnabled()
+        ? new CommandForwarder(config.getCommandForwardingChannel(),
+            config.isCommandForwardingRequirePermission(), config.isCommandForwardingLog())
+        : CommandForwarder.DISABLED;
 
     if (config.isUpdateCheckEnabled()) {
       GitHubReleaseProvider provider = new GitHubReleaseProvider(
@@ -195,6 +201,7 @@ public final class Conduit {
     channelGuard.register(plugin, proxy);
     modCompatibilityRouter.register(plugin, proxy);
     maintenanceManager.register(plugin, proxy);
+    commandForwarder.register(plugin, proxy);
 
     startMetricsServerIfEnabled();
 
@@ -422,6 +429,11 @@ public final class Conduit {
     return maintenanceManager;
   }
 
+  /** Returns the active {@link CommandForwarder}. */
+  public CommandForwarder getCommandForwarder() {
+    return commandForwarder;
+  }
+
   /** Returns the Conduit build version string. */
   public String getConduitVersion() {
     return conduitVersion;
@@ -509,6 +521,9 @@ public final class Conduit {
     logger.info("[Conduit]   update-check            = {} (repo {}, notify-join {})",
         config.isUpdateCheckEnabled(), config.getUpdateRepository(),
         config.isUpdateNotifyOnJoin());
+    logger.info("[Conduit]   command-forwarding      = {} (channel {}, require-perm {})",
+        config.isCommandForwardingEnabled(), config.getCommandForwardingChannel(),
+        config.isCommandForwardingRequirePermission());
   }
 
   private static String loadVersion() {

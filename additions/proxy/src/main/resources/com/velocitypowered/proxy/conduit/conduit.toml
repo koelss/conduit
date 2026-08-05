@@ -244,6 +244,41 @@ modlist-enabled = true
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# [forwarding] — Backend → proxy command forwarding
+# ─────────────────────────────────────────────────────────────────────────────
+# Lets a backend server ask the proxy to run a command, using the wire protocol of the
+# VelocityCommandForward plugin (https://github.com/ItsTauTvyDas/VelocityCommandForward). This
+# replaces the proxy-side plugin: install only the *backend* half of VelocityCommandForward on your
+# Paper/Spigot servers and enable this section instead of the Velocity plugin.
+#
+# A backend player or console runs `/proxyexec <command>` (the backend command); the command is then
+# executed on the proxy as the proxy console, or as the forwarding player if a player sent it.
+# Because forwarded commands run with console/player authority, only real backend connections are
+# honoured, and you can additionally gate player-context commands behind a permission below.
+#
+# NOTE: plugin messaging needs at least one player online for a console-originated command to reach
+# the proxy — this is a Minecraft limitation, not a Conduit one.
+[forwarding]
+
+# Master switch. Default false preserves current behaviour: with no backend plugin installed this
+# does nothing, and existing installs are unaffected until you opt in.
+command-forwarding = false
+
+# The plugin-messaging channel the backend sends on. Must match the backend plugin; leave this as
+# the upstream default unless you have changed it on the backend side.
+channel = "velocity_command_forward:main"
+
+# When true, a command forwarded on behalf of a player only runs if that player holds the
+# `conduit.forward.execute` permission. Console-originated commands (from a trusted backend console)
+# are always allowed. Default false matches upstream VelocityCommandForward behaviour.
+require-permission = false
+
+# Echo the backend-supplied log line to the proxy console when a command is forwarded (commands the
+# backend marks as "filtered" are always silent). Set false to keep the proxy console quiet.
+log-forwarded-commands = true
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # [update] — Update checker
 # ─────────────────────────────────────────────────────────────────────────────
 # Conduit can check GitHub Releases for a newer version. The check runs

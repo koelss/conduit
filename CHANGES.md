@@ -4,7 +4,44 @@ All changes relative to upstream `GemstoneGG/Velocity-CTD @ libdeflate`.
 
 ---
 
-## Unreleased — Conduit branding & update checker
+## 1.5.0 — Command forwarding & self-updating config
+
+### Added — native command forwarding (`com.velocitypowered.proxy.conduit.forward`)
+
+* **Backend → proxy command execution**, an opt-in re-implementation of the proxy half of the
+  [VelocityCommandForward](https://github.com/ItsTauTvyDas/VelocityCommandForward) plugin, so
+  operators no longer install a separate Velocity plugin. `CommandForwarder` registers the
+  `velocity_command_forward:main` plugin-messaging channel and, on a message from a genuine
+  `ServerConnection`, executes the carried command as the proxy console (empty sender UUID) or as
+  the forwarding player (if still online) via `CommandManager#executeAsync`.
+* **Wire-compatible** with the upstream plugin: the same `UTF uuid / UTF command / byte flags /
+  UTF log` payload is parsed, and the event is marked `handled()` so the payload is consumed at the
+  proxy. Existing VelocityCommandForward **backend** installs keep working unchanged.
+* **Safe by construction:** only real backend connections are honoured (a client cannot forge the
+  message), malformed payloads are dropped with a warning, and an optional `require-permission`
+  gate makes player-context commands require `conduit.forward.execute` (console commands, produced
+  only by a trusted backend console, are always allowed).
+* **New `[forwarding]` section** in `conduit.toml`: `command-forwarding` (default **false** —
+  preserves current behaviour), `channel`, `require-permission` (default false), and
+  `log-forwarded-commands` (default true). The channel is validated as `namespace:path` when the
+  feature is enabled. Surfaced in the startup summary and `ConduitConfig`.
+
+### Added — self-updating configuration (`ConduitConfigMigrator`)
+
+* **`conduit.toml` is now forward-compatible.** On every load, Conduit compares the operator's file
+  against the defaults bundled in the jar and **adds any missing options** — including whole new
+  sections — carrying each new key's **default value and its comment**. Operators no longer delete
+  or regenerate the file after an upgrade.
+* **Existing values are never overwritten** (even values equal to the default), user comments are
+  preserved through the TOML round-trip, and a file that is already complete is **not rewritten**
+  (its bytes and mtime are untouched). Additions and renames are logged.
+* **Structural migrations** are supported via an internal old-path → new-path rename table, applied
+  before missing keys are filled so a moved/renamed option carries the operator's value across
+  instead of silently resetting. The map is empty today and exists as the documented extension
+  point for future changes. The one-time `radar.toml → conduit.toml` rename is unchanged.
+* Best-effort: any error during migration leaves the file untouched and startup proceeds.
+
+## 1.4.0 — Conduit branding & update checker
 
 ### Changed — the proxy now identifies itself as Conduit
 

@@ -38,6 +38,8 @@ backends.
 | **Bundled spark profiler** | Ships the official `lucko/spark` Velocity plugin and installs it as `/sparkv` / `/sparkvelocity`. Skips if an operator-managed spark jar is present, and can be disabled via `conduit.toml → [spark] → bundle-enabled`. |
 | **Native LuckPerms** | Ships the official LuckPerms Velocity plugin and installs it on first run, so permissions, groups, and prefixes work out of the box. Skips if an operator-managed LuckPerms jar is present, and can be disabled via `conduit.toml → [luckperms] → bundle-enabled`. CTD's LuckPerms permission resolver then activates automatically. |
 | **Update checker** | Asynchronously checks GitHub Releases for a newer Conduit version, caches the result, compares semantic versions, and tells `conduit.update.notify` staff how many releases they are behind on join. Modular provider design; configurable via `conduit.toml → [update]`. |
+| **Command forwarding** | Optional backend→proxy command execution over plugin messaging, wire-compatible with the VelocityCommandForward plugin. A backend's `/proxyexec <cmd>` runs on the proxy as console or the forwarding player. Off by default; enable via `conduit.toml → [forwarding] → command-forwarding`. Replaces the proxy-side VelocityCommandForward plugin. |
+| **Self-updating config** | `conduit.toml` is topped up on every start: options added in newer Conduit versions appear automatically with documented defaults, existing values and comments are preserved, and no manual delete/regenerate is ever needed. |
 | **Operator commands** | `/conduit reload \| diagnostics \| health \| doctor \| unblock <ip> \| cache invalidate <ip>` and `/modlist [player]` — no extra plugin needed. |
 
 ---
@@ -176,6 +178,12 @@ allowlist       = []        # usernames always allowed in during maintenance
 admin-enabled                   = true      # registers /conduit (permission: conduit.admin)
 modlist-enabled                 = true      # registers /modlist  (permission: conduit.modlist)
 
+[forwarding]
+command-forwarding              = false     # opt-in; backend → proxy command execution
+channel                         = "velocity_command_forward:main"  # must match backend plugin
+require-permission              = false     # gate player-context commands on conduit.forward.execute
+log-forwarded-commands          = true      # echo the backend log line to the proxy console
+
 [spark]
 bundle-enabled                  = true      # extract bundled spark plugin; set false to suppress
 
@@ -236,6 +244,45 @@ Configure it under `[update]` in `conduit.toml`:
 
 The checker is provider-based (`UpdateProvider` → `GitHubReleaseProvider`), so an alternative update
 source can be added later without changing the comparison or notification logic.
+
+### Command forwarding
+
+Conduit can run commands that a **backend** server forwards to the proxy — for example so a Discord
+bot, or a plugin like TAB that needs proxy-level commands, can trigger `/send`, `/alert`, or any
+other proxy command from a Paper/Spigot server. This is a built-in, opt-in re-implementation of the
+proxy half of the [VelocityCommandForward](https://github.com/ItsTauTvyDas/VelocityCommandForward)
+plugin, and it speaks the **same plugin-messaging protocol**, so you keep using that project's
+**backend** plugin and simply stop installing its Velocity plugin.
+
+- **Disabled by default.** With `command-forwarding = false` (the default) Conduit registers no
+  channel and does nothing, so existing installs are unaffected until you opt in.
+- Enable it under `[forwarding]` in `conduit.toml`, then install only the *backend* half of
+  VelocityCommandForward on your servers. A backend player or console runs `/proxyexec <command>`;
+  the command executes on the proxy as the **proxy console** (console-originated) or as the
+  **forwarding player** (player-originated, if still online).
+- **Only real backend connections are honoured** — a client cannot forge these messages to execute
+  commands. Set `require-permission = true` to additionally require the forwarding player to hold
+  `conduit.forward.execute`; console-originated commands are always allowed.
+
+| Key | Default | Description |
+|-----|---------|-------------|
+| `command-forwarding` | `false` | Master switch. Off preserves current behaviour. |
+| `channel` | `velocity_command_forward:main` | Plugin-messaging channel; must match the backend plugin. |
+| `require-permission` | `false` | Require `conduit.forward.execute` for player-context commands. |
+| `log-forwarded-commands` | `true` | Echo the backend-supplied log line to the proxy console. |
+
+> **Note:** plugin messaging needs at least one player online for a console-originated backend
+> command to reach the proxy — a Minecraft limitation, not a Conduit one.
+
+### Automatic `conduit.toml` updates
+
+You never have to delete or regenerate `conduit.toml` after upgrading Conduit. On every start Conduit
+compares your file against the defaults bundled in the jar and **adds any options a newer version
+introduced**, each with its documented default value and comment. Your existing values and comments
+are **never overwritten** — an option you already set (even to the default) is left untouched — and a
+file that is already complete is not rewritten at all. Structural renames between versions are
+handled by an internal migration table so a moved option carries your value across instead of
+resetting. The result is logged, e.g. `conduit.toml: added 4 new option(s) with defaults: …`.
 
 ### Migrating from KnownPacksFix
 
