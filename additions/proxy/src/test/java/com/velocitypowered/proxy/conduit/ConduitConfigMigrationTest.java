@@ -96,4 +96,47 @@ class ConduitConfigMigrationTest {
     assertEquals(new String(before), Files.readString(file),
         "a complete file must not be rewritten");
   }
+
+  @Test
+  void preservesExistingValuesAndLayoutVerbatim() throws Exception {
+    Path file = tempDir.resolve("conduit.toml");
+    String original = """
+        # my hand-written header
+        [luckperms]
+        bundle-enabled = false
+
+        [spark]
+        bundle-enabled = false
+        """;
+    Files.writeString(file, original);
+
+    ConduitConfigMigrator.migrate(file);
+    String out = Files.readString(file);
+
+    // Append-only: every original line survives verbatim and the header stays first.
+    for (String line : original.split("\n")) {
+      assertTrue(out.contains(line), "original line must be preserved verbatim: <" + line + ">");
+    }
+    assertTrue(out.startsWith("# my hand-written header"), "user layout must be preserved");
+    // Missing sections are appended with their defaults.
+    assertTrue(out.contains("[update]"), "missing section should be appended");
+
+    // The operator's disabled values are never reset.
+    ConduitConfig cfg = ConduitConfig.load(tempDir);
+    assertFalse(cfg.isLuckPermsBundleEnabled(), "luckperms bundle-enabled must stay false");
+    assertFalse(cfg.isSparkBundleEnabled(), "spark bundle-enabled must stay false");
+  }
+
+  @Test
+  void handlesCrlfFilesWithoutCorruption() throws Exception {
+    Path file = tempDir.resolve("conduit.toml");
+    // A Windows-edited file with CRLF endings and one non-default value.
+    Files.writeString(file, "[modded]\r\nmax-known-packs = 2048\r\n");
+
+    ConduitConfigMigrator.migrate(file);
+
+    ConduitConfig cfg = ConduitConfig.load(tempDir);
+    assertEquals(2048, cfg.getMaxKnownPacks(), "CRLF value must be preserved");
+    assertTrue(cfg.isLuckPermsBundleEnabled(), "appended defaults must be readable (CRLF file)");
+  }
 }

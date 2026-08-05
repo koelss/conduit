@@ -4,6 +4,7 @@ import java.net.URI
 import java.nio.file.Files
 import java.nio.file.StandardCopyOption
 import java.security.MessageDigest
+import java.time.Instant
 
 plugins {
     application
@@ -51,6 +52,42 @@ val generatePermissionIntegrationsIndex by tasks.registering {
         val indexFile = outputDir.get().asFile.resolve("$resourceDir/integrations.index")
         indexFile.parentFile.mkdirs()
         indexFile.writeText(entries.joinToString("\n", postfix = "\n") { "$resourceDir/$it.jar" })
+    }
+}
+
+// Generates conduit-build.properties at build time from conduit.version so the internal version,
+// update checker, and manifest always match the released jar. Previously this file was written only
+// by the setup script, so bumping conduit.version did not propagate until setup re-ran (which is how
+// a 1.6.0 jar could still report 1.5.2 to the update checker).
+val conduitVersion = providers.gradleProperty("conduit.version").getOrElse(project.version.toString())
+val conduitUpstreamBranch = providers.gradleProperty("conduit.upstream.branch").getOrElse("unknown")
+val conduitGitHash = providers.exec {
+    commandLine("git", "rev-parse", "--short", "HEAD")
+    isIgnoreExitValue = true
+}.standardOutput.asText.map { it.trim().ifEmpty { "unknown" } }.orElse("unknown")
+
+val generateConduitBuildProperties by tasks.registering {
+    inputs.property("version", conduitVersion)
+    inputs.property("branch", conduitUpstreamBranch)
+    inputs.property("gitHash", conduitGitHash)
+
+    val outputDir = layout.buildDirectory.dir("generated/conduit-build")
+    outputs.dir(outputDir)
+
+    val version = conduitVersion
+    val branch = conduitUpstreamBranch
+    val gitHash = conduitGitHash
+
+    doLast {
+        val propsFile = outputDir.get().asFile
+            .resolve("com/velocitypowered/proxy/conduit/conduit-build.properties")
+        propsFile.parentFile.mkdirs()
+        propsFile.writeText(
+            "conduit.version=$version\n"
+                + "conduit.build.time=${Instant.now()}\n"
+                + "conduit.git.hash=${gitHash.get()}\n"
+                + "conduit.upstream.branch=$branch\n"
+        )
     }
 }
 
@@ -140,6 +177,10 @@ tasks {
         manifest {
             attributes["Implementation-Title"] = "Conduit"
             attributes["Implementation-Vendor"] = "Conduit Contributors"
+            // Conduit: report the real Conduit version in the manifest so it matches the internal
+            // version and the update checker, rather than the upstream -SNAPSHOT coordinate.
+            attributes["Implementation-Version"] = conduitVersion
+            attributes["Conduit-Version"] = conduitVersion
             attributes["Multi-Release"] = "true"
             attributes["Enable-Native-Access"] = "ALL-UNNAMED"
             attributes["Enable-Final-Field-Mutation"] = "ALL-UNNAMED"
@@ -158,6 +199,13 @@ tasks {
             }
         }
         from(generatePermissionIntegrationsIndex)
+
+        // Conduit: generate the version metadata (conduit-build.properties) at build time so the
+        // reported version always matches conduit.version.
+        from(generateConduitBuildProperties)
+        // A stale copy may exist in the generated source tree (older setup scripts wrote it there);
+        // the build-time copy is authoritative, so drop duplicates in its favour.
+        duplicatesStrategy = DuplicatesStrategy.INCLUDE
 
         // Conduit: embed the verified spark Velocity jar so it can be installed on first run.
         dependsOn(downloadBundledSpark)
