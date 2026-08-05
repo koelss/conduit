@@ -22,11 +22,13 @@ import com.velocitypowered.proxy.conduit.Conduit;
 import com.velocitypowered.proxy.protocol.MinecraftPacket;
 import com.velocitypowered.proxy.protocol.ProtocolUtils;
 import com.velocitypowered.proxy.protocol.StateRegistry;
+import com.velocitypowered.proxy.protocol.packet.AvailableCommandsPacket;
 import io.netty.channel.ChannelDuplexHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPromise;
 import io.netty.util.ReferenceCountUtil;
 import java.util.ArrayDeque;
+import java.util.Iterator;
 import java.util.Queue;
 import org.jetbrains.annotations.NotNull;
 
@@ -72,11 +74,31 @@ public class PlayPacketQueueOutboundHandler extends ChannelDuplexHandler {
     }
 
     if (isConduitPacketQueueEnabled() && this.queue.size() >= Conduit.get().getConfig().getPacketQueueMaxDepth()) {
-      ReferenceCountUtil.release(this.queue.poll());
+      // The command tree is a PLAY packet and must survive the CONFIG queue. Dropping it leaves
+      // the client with an incomplete Brigadier tree, making otherwise executable commands render
+      // red/unknown. Evict the oldest ordinary packet instead; if the queue contains only command
+      // trees, retain the existing tree and drop this redundant update.
+      if (!evictOldestNonCommandTree()) {
+        ReferenceCountUtil.release(packet);
+        return;
+      }
     }
 
     // Otherwise, queue the packet
     this.queue.offer(packet);
+  }
+
+  private boolean evictOldestNonCommandTree() {
+    Iterator<MinecraftPacket> iterator = this.queue.iterator();
+    while (iterator.hasNext()) {
+      MinecraftPacket queued = iterator.next();
+      if (!(queued instanceof AvailableCommandsPacket)) {
+        iterator.remove();
+        ReferenceCountUtil.release(queued);
+        return true;
+      }
+    }
+    return false;
   }
 
   @Override
