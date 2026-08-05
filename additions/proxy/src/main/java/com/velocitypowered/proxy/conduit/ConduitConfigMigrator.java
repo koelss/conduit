@@ -90,7 +90,7 @@ final class ConduitConfigMigrator {
 
       List<String> renamed = applyRenames(user);
       List<String> added = new ArrayList<>();
-      fillMissing(defaults, user, "", added);
+      fillMissing(defaults, user, List.of(), added);
 
       if (added.isEmpty() && renamed.isEmpty()) {
         return;
@@ -136,38 +136,50 @@ final class ConduitConfigMigrator {
    * new key's default value and its comment. Existing keys are never modified; where both sides
    * have a sub-table the merge descends into it so a new key inside an existing section is added
    * without disturbing the operator's other keys in that section.
+   *
+   * <p>All writes go through the root {@code user} config using the full path so that new sections
+   * are created as native sub-tables (and thus written as {@code [section]} headers) rather than
+   * inline tables. {@code level} is the current level of {@code defaults} being walked, used only
+   * to read each key's default value and comment.
    */
-  private static void fillMissing(CommentedConfig defaults, CommentedConfig user,
-      String prefix, List<String> added) {
-    for (CommentedConfig.Entry entry : defaults.entrySet()) {
+  private static void fillMissing(CommentedConfig level, CommentedConfig user,
+      List<String> prefix, List<String> added) {
+    for (CommentedConfig.Entry entry : level.entrySet()) {
       String key = entry.getKey();
-      List<String> path = List.of(key);
-      String dotted = prefix.isEmpty() ? key : prefix + "." + key;
+      List<String> here = List.of(key);
+      List<String> path = concat(prefix, key);
       Object defaultValue = entry.getValue();
       Object userValue = user.get(path);
+      String comment = level.getComment(here);
 
       if (defaultValue instanceof CommentedConfig defaultSub) {
-        if (userValue instanceof CommentedConfig userSub) {
-          fillMissing(defaultSub, userSub, dotted, added);
-        } else if (userValue == null) {
-          user.set(path, defaultValue);
-          copyComment(defaults, user, path);
-          added.add(dotted + ".*");
+        if (userValue == null) {
+          // Create the section as a native sub-table so it is written as a [section] header, carry
+          // its comment, then descend to add every key inside it.
+          user.set(path, user.createSubConfig());
+          if (comment != null) {
+            user.setComment(path, comment);
+          }
+          fillMissing(defaultSub, user, path, added);
+        } else if (userValue instanceof CommentedConfig) {
+          fillMissing(defaultSub, user, path, added);
         }
         // A non-table value where a table is expected is an operator override; leave it alone.
       } else if (userValue == null) {
         user.set(path, defaultValue);
-        copyComment(defaults, user, path);
-        added.add(dotted);
+        if (comment != null) {
+          user.setComment(path, comment);
+        }
+        added.add(String.join(".", path));
       }
     }
   }
 
-  private static void copyComment(CommentedConfig from, CommentedConfig to, List<String> path) {
-    String comment = from.getComment(path);
-    if (comment != null) {
-      to.setComment(path, comment);
-    }
+  private static List<String> concat(List<String> prefix, String key) {
+    List<String> path = new ArrayList<>(prefix.size() + 1);
+    path.addAll(prefix);
+    path.add(key);
+    return path;
   }
 
   /**

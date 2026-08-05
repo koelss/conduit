@@ -82,7 +82,7 @@ class ConduitConfigMigrationTest {
   }
 
   @Test
-  void leavesACompleteFileUnchanged() throws Exception {
+  void leavesCompleteFileUnchanged() throws Exception {
     Path file = tempDir.resolve("conduit.toml");
     // Extract the shipped defaults verbatim, then confirm migration is a no-op on them.
     try (var in = ConduitConfig.class.getResourceAsStream(
