@@ -4,7 +4,19 @@ All changes relative to upstream `GemstoneGG/Velocity-CTD @ libdeflate`.
 
 ---
 
-## 1.6.3 — Bundled LuckPerms refresh
+## 1.6.3 — LuckPerms permission suggestions & bundled jar refresh
+
+### Fixed — maintenance bypass (and other conduit.* nodes) now autocomplete in LuckPerms
+
+* Velocity has no permission registry. LuckPerms only suggests nodes it has seen checked (or that
+  were inserted into its internal `PermissionRegistry`). `conduit.maintenance.bypass` is checked
+  only while maintenance mode is active, so it never appeared for autofill in `/lpv` or the web
+  editor. The same gap affects other rarely-checked nodes such as `conduit.forward.execute`.
+* Added `ConduitPermissions` (canonical catalogue) and `LuckPermsPermissionSeeder`, which runs
+  after plugins load and publishes every first-class `conduit.*` node into LuckPerms via
+  `PermissionRegistry.insert` (with a console `hasPermission` fallback). Safe no-op when LuckPerms
+  is absent. Seeded nodes: `conduit.admin`, `conduit.modlist`, `conduit.maintenance.bypass`,
+  `conduit.channelguard.bypass`, `conduit.update.notify`, `conduit.forward.execute`.
 
 ### Fixed (build)
 
@@ -12,7 +24,9 @@ All changes relative to upstream `GemstoneGG/Velocity-CTD @ libdeflate`.
   old build numbers, so the pinned build `1643` (`5.5.55`) began returning HTTP 404, breaking the
   `:velocity-proxy:downloadBundledLuckPerms` task and the whole build/CI. `conduit.luckperms.velocity.url`
   and `conduit.luckperms.velocity.sha256` in `gradle.properties` now point at build `1658` (`5.5.71`).
-  Dependency refresh only; no proxy behaviour changes.
+* **CI release "Rename JAR" step** no longer fails when the Conduit shadowJar is already named
+  `conduit-<version>.jar` (it previously still globbed the upstream `velocity-proxy-*-all.jar`
+  name and skipped publishing the GitHub Release).
 
 ---
 

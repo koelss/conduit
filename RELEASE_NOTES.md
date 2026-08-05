@@ -1,12 +1,22 @@
 # Conduit 1.6.3
 
+## Fixed
+
+- **LuckPerms now autocompletes Conduit permissions (including maintenance bypass).** Velocity has
+  no permission registry, so nodes that Conduit only checks rarely — especially
+  `conduit.maintenance.bypass`, which is evaluated only while maintenance mode is active — never
+  appeared in `/lpv` tab-complete or the LuckPerms web editor. Conduit now seeds its known
+  `conduit.*` nodes into LuckPerms' suggestion tree at startup when LuckPerms is present
+  (`conduit.admin`, `conduit.modlist`, `conduit.maintenance.bypass`, `conduit.channelguard.bypass`,
+  `conduit.update.notify`, `conduit.forward.execute`).
+
 ## Fixed (build)
 
 - **Refreshed the bundled LuckPerms Velocity jar to `5.5.71`.** The LuckPerms download server prunes
   old build numbers, so the previously pinned build `1643` (`5.5.55`) started returning HTTP 404. That
   broke the `:velocity-proxy:downloadBundledLuckPerms` task and therefore the entire build and CI. The
   pinned URL and SHA-256 now point at the current build `1658` (`5.5.71`), sourced from the LuckPerms
-  metadata API. This is a dependency refresh only — no proxy behaviour changes.
+  metadata API.
 
 > **Note:** because LuckPerms only retains recent builds, a pinned build can disappear again in the
 > future. If `downloadBundledLuckPerms` fails with a 404, refresh `conduit.luckperms.velocity.url` /
