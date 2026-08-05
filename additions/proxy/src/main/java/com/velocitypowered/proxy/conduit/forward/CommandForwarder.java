@@ -71,15 +71,11 @@ import org.apache.logging.log4j.Logger;
 public class CommandForwarder {
 
   /**
-   * Historic permission node for gating player-context forwarded commands.
-   *
-   * @deprecated No longer enforced. Because Velocity has no permission registry, this synthetic node
-   *     never appeared in permission editors (e.g. the LuckPerms web editor) and could not be
-   *     granted there. Player-context forwarded commands now run as the player, so the command
-   *     manager authorises them against each command's own (real, discoverable) permission instead.
-   *     Retained only for source compatibility.
+   * Permission a player must hold for a player-context forwarded command when {@code
+   * require-permission} is enabled. Note: Velocity has no permission registry, so this node will not
+   * autocomplete in the LuckPerms web editor — grant it explicitly with
+   * {@code /lp user <name> permission set conduit.forward.execute true} (or to a group).
    */
-  @Deprecated
   public static final String EXECUTE_PERMISSION = "conduit.forward.execute";
 
   /** Filter flag: the backend marked this command as silent (no log / feedback). */
@@ -140,12 +136,8 @@ public class CommandForwarder {
     this.proxy = proxy;
     proxy.getChannelRegistrar().register(channel);
     proxy.getEventManager().register(plugin, this);
-    logger.info("[Conduit] Command forwarding enabled on channel '{}'.", channelName);
-    if (requirePermission) {
-      logger.info("[Conduit] Note: [forwarding] require-permission is deprecated and no longer "
-          + "enforced — forwarded player commands are authorised by each command's own permission. "
-          + "You can remove require-permission from conduit.toml.");
-    }
+    logger.info("[Conduit] Command forwarding enabled on channel '{}' (require-permission={}).",
+        channelName, requirePermission);
   }
 
   /**
@@ -209,13 +201,19 @@ public class CommandForwarder {
       return;
     }
     proxy.getPlayer(uuid).ifPresent(player -> {
-      // Run the command as the player. The command manager then enforces the player's permission
-      // for the ACTUAL command being executed — a real, discoverable node (e.g. the command's own
-      // permission) that shows up in permission editors. We intentionally do NOT gate on a synthetic
-      // 'conduit.forward.execute' node: Velocity has no permission registry, so such a node never
-      // appears in the LuckPerms web editor and cannot be granted there, which only blocked
-      // legitimate players. Forgery is already prevented because the message must originate from a
-      // genuine backend ServerConnection.
+      // Gate player-context forwarded commands: without this, any player who can invoke the backend
+      // /proxyexec could run proxy commands, and relying on each command's own permission is not
+      // enough (e.g. /sparkv). The node is a plain Velocity permission — LuckPerms will not
+      // autocomplete it in the web editor (Velocity has no permission registry), but it can still be
+      // granted explicitly, so the block message spells out exactly how.
+      if (requirePermission && !player.hasPermission(EXECUTE_PERMISSION)) {
+        logger.warn("[Conduit] Blocked forwarded command '/{}' from {} — missing permission '{}'. "
+                + "Grant it with '/lp user {} permission set {} true' (or to a group), or set "
+                + "[forwarding] require-permission = false in conduit.toml to disable this gate.",
+            command, player.getUsername(), EXECUTE_PERMISSION, player.getUsername(),
+            EXECUTE_PERMISSION);
+        return;
+      }
       maybeLog(filtered, log);
       proxy.getCommandManager().executeAsync(player, command);
     });

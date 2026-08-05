@@ -146,15 +146,34 @@ class CommandForwarderTest {
   }
 
   @Test
-  void runsPlayerCommandAsThePlayerRegardlessOfLegacyRequirePermission() {
-    // The synthetic conduit.forward.execute gate has been removed: forwarded player commands run as
-    // the player so the command manager enforces the actual command's own permission. Even with the
-    // legacy require-permission flag set, the command is dispatched (and never consults the phantom
-    // node), so a player is no longer blocked by a permission that no editor could grant.
+  void blocksPlayerCommandWhenRequirePermissionAndPlayerLacksNode() {
+    // require-permission gates forwarded player commands on conduit.forward.execute so an
+    // unauthorised player (e.g. an alt with no LuckPerms grants) cannot forward proxy commands.
     CommandManager commands = mock(CommandManager.class);
     ProxyServer proxy = proxyWith(commands);
     UUID uuid = UUID.randomUUID();
     Player player = mock(Player.class);
+    when(player.hasPermission(CommandForwarder.EXECUTE_PERMISSION)).thenReturn(false);
+    doReturn(Optional.of(player)).when(proxy).getPlayer(uuid);
+
+    CommandForwarder forwarder = new CommandForwarder(CHANNEL, true, true);
+    forwarder.register(new Object(), proxy);
+
+    ChannelIdentifier id = MinecraftChannelIdentifier.create("velocity_command_forward", "main");
+    ServerConnection source = mock(ServerConnection.class);
+    forwarder.onPluginMessage(
+        event(id, source, payload(uuid.toString(), "sparkv", false, "log")));
+
+    verify(commands, never()).executeAsync(any(), any());
+  }
+
+  @Test
+  void runsPlayerCommandWhenRequirePermissionAndPlayerHasNode() {
+    CommandManager commands = mock(CommandManager.class);
+    ProxyServer proxy = proxyWith(commands);
+    UUID uuid = UUID.randomUUID();
+    Player player = mock(Player.class);
+    when(player.hasPermission(CommandForwarder.EXECUTE_PERMISSION)).thenReturn(true);
     doReturn(Optional.of(player)).when(proxy).getPlayer(uuid);
 
     CommandForwarder forwarder = new CommandForwarder(CHANNEL, true, true);
@@ -166,6 +185,5 @@ class CommandForwarderTest {
         event(id, source, payload(uuid.toString(), "stop", false, "log")));
 
     verify(commands).executeAsync(player, "stop");
-    verify(player, never()).hasPermission(any());
   }
 }

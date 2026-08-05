@@ -1,3 +1,27 @@
+# Conduit 1.6.2
+
+## Fixed (security)
+
+- **Restored the command-forwarding permission gate.** 1.6.1-hotfix1 removed the
+  `conduit.forward.execute` check, which meant any player who could invoke the backend `/proxyexec`
+  could run proxy commands (e.g. `/sparkv`) even with no permissions. The gate is back: with
+  `[forwarding] require-permission = true`, a forwarded player command runs only if the player holds
+  `conduit.forward.execute`. Forgery is still prevented (the message must come from a genuine backend
+  connection), and console-originated commands are always allowed.
+
+## Changed
+
+- When a forwarded command is blocked, the log now spells out exactly how to authorise the player —
+  e.g. `/lp user <name> permission set conduit.forward.execute true` — because Velocity has no
+  permission registry, so the node does not autocomplete in the LuckPerms web editor. It must be
+  granted explicitly (to a user or a staff group).
+- Supersedes 1.6.1 and 1.6.1-hotfix1; version `1.6.2` sorts above both, so the update checker no
+  longer reports a false "behind".
+
+> **Known issue (upstream):** the `libdeflate` base bundles **Adventure 5**, so plugins compiled
+> against Adventure 4 (e.g. LibertyBans 1.1.4) fail to load with
+> `NoSuchMethodError: TextComponent.ofChildren`. This predates 1.6.x and is tracked separately.
+
 # Conduit 1.6.1-hotfix1
 
 ## Fixed
