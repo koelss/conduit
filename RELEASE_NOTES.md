@@ -1,3 +1,18 @@
+# Conduit 1.6.3
+
+## Fixed (build)
+
+- **Refreshed the bundled LuckPerms Velocity jar to `5.5.71`.** The LuckPerms download server prunes
+  old build numbers, so the previously pinned build `1643` (`5.5.55`) started returning HTTP 404. That
+  broke the `:velocity-proxy:downloadBundledLuckPerms` task and therefore the entire build and CI. The
+  pinned URL and SHA-256 now point at the current build `1658` (`5.5.71`), sourced from the LuckPerms
+  metadata API. This is a dependency refresh only — no proxy behaviour changes.
+
+> **Note:** because LuckPerms only retains recent builds, a pinned build can disappear again in the
+> future. If `downloadBundledLuckPerms` fails with a 404, refresh `conduit.luckperms.velocity.url` /
+> `.sha256` (and `.version`) in `gradle.properties` from `downloads.velocity` at
+> <https://metadata.luckperms.net/data/all>.
+
 # Conduit 1.6.2
 
 ## Fixed (security)

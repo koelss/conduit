@@ -4,6 +4,18 @@ All changes relative to upstream `GemstoneGG/Velocity-CTD @ libdeflate`.
 
 ---
 
+## 1.6.3 — Bundled LuckPerms refresh
+
+### Fixed (build)
+
+* **Bundled LuckPerms Velocity jar bumped `5.5.55` → `5.5.71`.** The LuckPerms download server prunes
+  old build numbers, so the pinned build `1643` (`5.5.55`) began returning HTTP 404, breaking the
+  `:velocity-proxy:downloadBundledLuckPerms` task and the whole build/CI. `conduit.luckperms.velocity.url`
+  and `conduit.luckperms.velocity.sha256` in `gradle.properties` now point at build `1658` (`5.5.71`).
+  Dependency refresh only; no proxy behaviour changes.
+
+---
+
 ## 1.5.0 — Command forwarding & self-updating config
 
 ### Added — native command forwarding (`com.velocitypowered.proxy.conduit.forward`)
