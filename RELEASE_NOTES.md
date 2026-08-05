@@ -1,3 +1,26 @@
+# Conduit 1.6.1-hotfix1
+
+## Fixed
+
+- **Forwarded player commands are no longer blocked by an ungrantable permission.** With
+  `[forwarding] require-permission = true`, Conduit gated forwarded player commands on a synthetic
+  `conduit.forward.execute` node. Because Velocity has no permission registry, that node never
+  appeared in the LuckPerms web editor and could not be granted there, so legitimate players were
+  blocked with `Blocked forwarded command from … — missing permission 'conduit.forward.execute'`.
+
+  Forwarded player commands now run **as the player**, so the command manager authorises them against
+  each command's **own** permission — a real, editor-visible node — exactly like normal command
+  execution. Forgery is still prevented: the message must originate from a genuine backend
+  `ServerConnection`, never a client.
+
+## Changed
+
+- `[forwarding] require-permission` is deprecated and no longer enforced (kept so existing
+  `conduit.toml` files still parse; a one-line note is logged if it is set true). `EXECUTE_PERMISSION`
+  / `conduit.forward.execute` is retained only for source compatibility.
+
+This hotfix supersedes 1.6.1 and includes all of its fixes below.
+
 # Conduit 1.6.1
 
 ## Fixed

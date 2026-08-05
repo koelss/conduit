@@ -19,7 +19,6 @@ package com.velocitypowered.proxy.conduit.forward;
 
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -147,12 +146,15 @@ class CommandForwarderTest {
   }
 
   @Test
-  void enforcesPermissionForPlayerContextWhenConfigured() {
+  void runsPlayerCommandAsThePlayerRegardlessOfLegacyRequirePermission() {
+    // The synthetic conduit.forward.execute gate has been removed: forwarded player commands run as
+    // the player so the command manager enforces the actual command's own permission. Even with the
+    // legacy require-permission flag set, the command is dispatched (and never consults the phantom
+    // node), so a player is no longer blocked by a permission that no editor could grant.
     CommandManager commands = mock(CommandManager.class);
     ProxyServer proxy = proxyWith(commands);
     UUID uuid = UUID.randomUUID();
     Player player = mock(Player.class);
-    when(player.hasPermission(CommandForwarder.EXECUTE_PERMISSION)).thenReturn(false);
     doReturn(Optional.of(player)).when(proxy).getPlayer(uuid);
 
     CommandForwarder forwarder = new CommandForwarder(CHANNEL, true, true);
@@ -163,6 +165,7 @@ class CommandForwarderTest {
     forwarder.onPluginMessage(
         event(id, source, payload(uuid.toString(), "stop", false, "log")));
 
-    verify(commands, never()).executeAsync(eq(player), any());
+    verify(commands).executeAsync(player, "stop");
+    verify(player, never()).hasPermission(any());
   }
 }

@@ -268,9 +268,10 @@ command-forwarding = false
 # the upstream default unless you have changed it on the backend side.
 channel = "velocity_command_forward:main"
 
-# When true, a command forwarded on behalf of a player only runs if that player holds the
-# `conduit.forward.execute` permission. Console-originated commands (from a trusted backend console)
-# are always allowed. Default false matches upstream VelocityCommandForward behaviour.
+# DEPRECATED and no longer enforced. Forwarded player commands now run as the player, so the command
+# manager authorises them against each command's own permission (a real node your permission editor
+# can grant), instead of a synthetic `conduit.forward.execute` node that never appeared in the
+# LuckPerms web editor. Kept only so older files still parse; you may remove it.
 require-permission = false
 
 # Echo the backend-supplied log line to the proxy console when a command is forwarded (commands the
