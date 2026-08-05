@@ -20,6 +20,7 @@ package com.velocitypowered.proxy.conduit.forward;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -103,7 +104,7 @@ class CommandForwarderTest {
     ProxyServer proxy = proxyWith(commands);
     UUID uuid = UUID.randomUUID();
     Player player = mock(Player.class);
-    when(proxy.getPlayer(uuid)).thenReturn(Optional.of(player));
+    doReturn(Optional.of(player)).when(proxy).getPlayer(uuid);
 
     CommandForwarder forwarder = new CommandForwarder(CHANNEL, false, true);
     forwarder.register(new Object(), proxy);
@@ -152,7 +153,7 @@ class CommandForwarderTest {
     UUID uuid = UUID.randomUUID();
     Player player = mock(Player.class);
     when(player.hasPermission(CommandForwarder.EXECUTE_PERMISSION)).thenReturn(false);
-    when(proxy.getPlayer(uuid)).thenReturn(Optional.of(player));
+    doReturn(Optional.of(player)).when(proxy).getPlayer(uuid);
 
     CommandForwarder forwarder = new CommandForwarder(CHANNEL, true, true);
     forwarder.register(new Object(), proxy);
