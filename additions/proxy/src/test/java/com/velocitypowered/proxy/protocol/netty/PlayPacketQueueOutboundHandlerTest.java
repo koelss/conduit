@@ -17,6 +17,7 @@
 
 package com.velocitypowered.proxy.protocol.netty;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -52,5 +53,30 @@ class PlayPacketQueueOutboundHandlerTest {
     assertTrue((Boolean) evict.invoke(handler));
     assertFalse(queue.contains(keepAlive));
     assertSame(commands, queue.peek());
+  }
+
+  @SuppressWarnings("unchecked")
+  @Test
+  void collapsesQueuedCommandTreesToTheNewest() throws Exception {
+    PlayPacketQueueOutboundHandler handler = new PlayPacketQueueOutboundHandler(
+        ProtocolVersion.MINECRAFT_1_20_2, ProtocolUtils.Direction.CLIENTBOUND);
+    Field queueField = PlayPacketQueueOutboundHandler.class.getDeclaredField("queue");
+    queueField.setAccessible(true);
+    Queue<MinecraftPacket> queue = (Queue<MinecraftPacket>) queueField.get(handler);
+
+    // Simulate a stale tree already sitting in the CONFIG queue, then a fresh one arriving.
+    AvailableCommandsPacket staleTree = new AvailableCommandsPacket();
+    queue.offer(staleTree);
+
+    Method release = PlayPacketQueueOutboundHandler.class.getDeclaredMethod("releaseQueuedCommandTrees");
+    release.setAccessible(true);
+    release.invoke(handler);
+    AvailableCommandsPacket freshTree = new AvailableCommandsPacket();
+    queue.offer(freshTree);
+
+    // Only the newest tree survives, so the FIFO flush can never surface the stale one.
+    assertFalse(queue.contains(staleTree));
+    assertSame(freshTree, queue.peek());
+    assertEquals(1, queue.size());
   }
 }

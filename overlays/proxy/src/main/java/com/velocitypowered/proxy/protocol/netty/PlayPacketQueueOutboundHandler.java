@@ -73,11 +73,21 @@ public class PlayPacketQueueOutboundHandler extends ChannelDuplexHandler {
       return;
     }
 
+    // The Brigadier command tree (AvailableCommandsPacket) is a PLAY packet that must survive the
+    // CONFIG queue: dropping it, or replaying a stale one, leaves the client with an incomplete tree
+    // so otherwise-executable commands render red/"unknown". Only the most recent tree is ever
+    // meaningful, so collapse any queued trees down to this newest one. This both guarantees the
+    // client ends on the correct tree (FIFO flush order can never surface a stale tree) and keeps
+    // command trees from counting against the depth cap.
+    if (packet instanceof AvailableCommandsPacket) {
+      releaseQueuedCommandTrees();
+      this.queue.offer(packet);
+      return;
+    }
+
     if (isConduitPacketQueueEnabled() && this.queue.size() >= Conduit.get().getConfig().getPacketQueueMaxDepth()) {
-      // The command tree is a PLAY packet and must survive the CONFIG queue. Dropping it leaves
-      // the client with an incomplete Brigadier tree, making otherwise executable commands render
-      // red/unknown. Evict the oldest ordinary packet instead; if the queue contains only command
-      // trees, retain the existing tree and drop this redundant update.
+      // Evict the oldest ordinary packet to make room. Command trees are never evicted here; if the
+      // queue somehow contains only a command tree, drop this ordinary packet instead.
       if (!evictOldestNonCommandTree()) {
         ReferenceCountUtil.release(packet);
         return;
@@ -99,6 +109,22 @@ public class PlayPacketQueueOutboundHandler extends ChannelDuplexHandler {
       }
     }
     return false;
+  }
+
+  /**
+   * Removes and releases every {@link AvailableCommandsPacket} currently queued. Called before a
+   * newer command tree is enqueued so that at most one — always the latest — is ever flushed to the
+   * client.
+   */
+  private void releaseQueuedCommandTrees() {
+    Iterator<MinecraftPacket> iterator = this.queue.iterator();
+    while (iterator.hasNext()) {
+      MinecraftPacket queued = iterator.next();
+      if (queued instanceof AvailableCommandsPacket) {
+        iterator.remove();
+        ReferenceCountUtil.release(queued);
+      }
+    }
   }
 
   @Override
