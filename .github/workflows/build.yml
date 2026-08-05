@@ -36,12 +36,20 @@ jobs:
           set -euo pipefail
           VERSION=$(grep "^conduit.version=" gradle.properties | cut -d= -f2)
           shopt -s nullglob
-          jars=( proxy/build/libs/velocity-proxy-*-all.jar )
-          if [ ${#jars[@]} -ne 1 ]; then
-            echo "Expected exactly one shadow JAR, found ${#jars[@]}: ${jars[*]}" >&2
-            exit 1
+          target="proxy/build/libs/conduit-${VERSION}.jar"
+          # The Conduit shadowJar is already named conduit-<version>.jar (see the proxy build
+          # script's shadowJar.archiveFileName). Older upstream builds instead produced
+          # velocity-proxy-*-all.jar, so fall back to renaming that if the target is absent.
+          if [ -f "$target" ]; then
+            echo "Shadow JAR already named: $target"
+          else
+            jars=( proxy/build/libs/velocity-proxy-*-all.jar )
+            if [ ${#jars[@]} -ne 1 ]; then
+              echo "Expected exactly one shadow JAR, found ${#jars[@]}: ${jars[*]}" >&2
+              exit 1
+            fi
+            mv "${jars[0]}" "$target"
           fi
-          mv "${jars[0]}" "proxy/build/libs/conduit-${VERSION}.jar"
 
       - name: Upload artifacts
         if: success()
