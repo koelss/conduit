@@ -1,3 +1,13 @@
+# Conduit 1.5.2
+
+## Fixed
+
+- Fixed CI formatting failure by adding the required project license header to the command-tree queue regression test.
+
+## Technical
+
+- No production behavior changed from 1.5.1; this patch release makes the verified regression test pass repository formatting checks.
+
 # Conduit 1.5.1
 
 ## Fixed
