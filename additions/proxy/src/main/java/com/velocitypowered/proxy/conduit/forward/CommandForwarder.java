@@ -74,7 +74,7 @@ public class CommandForwarder {
    * Permission a player must hold for a player-context forwarded command when {@code
    * require-permission} is enabled. Note: Velocity has no permission registry, so this node will not
    * autocomplete in the LuckPerms web editor — grant it explicitly with
-   * {@code /lp user <name> permission set conduit.forward.execute true} (or to a group).
+   * {@code /lpv user <name> permission set conduit.forward.execute true} (or to a group).
    */
   public static final String EXECUTE_PERMISSION = "conduit.forward.execute";
 
@@ -208,7 +208,7 @@ public class CommandForwarder {
       // granted explicitly, so the block message spells out exactly how.
       if (requirePermission && !player.hasPermission(EXECUTE_PERMISSION)) {
         logger.warn("[Conduit] Blocked forwarded command '/{}' from {} — missing permission '{}'. "
-                + "Grant it with '/lp user {} permission set {} true' (or to a group), or set "
+                + "Grant it with '/lpv user {} permission set {} true' (or to a group), or set "
                 + "[forwarding] require-permission = false in conduit.toml to disable this gate.",
             command, player.getUsername(), EXECUTE_PERMISSION, player.getUsername(),
             EXECUTE_PERMISSION);

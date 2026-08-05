@@ -273,7 +273,7 @@ channel = "velocity_command_forward:main"
 # from forwarding proxy commands. Console-originated commands (from a trusted backend console) are
 # always allowed. NOTE: Velocity has no permission registry, so this node will NOT autocomplete in
 # the LuckPerms web editor — grant it explicitly, e.g.
-# `/lp user <name> permission set conduit.forward.execute true` (or to a staff group).
+# `/lpv user <name> permission set conduit.forward.execute true` (or to a staff group).
 # Default false matches upstream VelocityCommandForward behaviour.
 require-permission = false
 
