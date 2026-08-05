@@ -2,31 +2,46 @@
 
 ## Fixed
 
-- Fixed a latent client-side command-synchronization defect where a *stale* Brigadier command tree
-  could be flushed to the client after a server switch, leaving valid backend commands rendered
-  red/"unknown". The previous fix protected the command tree from eviction but could still keep an
-  older tree ahead of a newer one in the CONFIG-state queue.
+- **Client-side command synchronization / tab-completion is fixed.** Since 1.4.0, commands sent
+  through the proxy rendered red ("unknown"), would not autofill, and produced no Brigadier
+  suggestions — even though they still executed on the backend. The command tree is now serialized
+  and applied by the client correctly again.
+- Fixed a secondary latent defect where a *stale* Brigadier command tree could be flushed to the
+  client after a server switch; queued command trees are now collapsed to the newest one.
+
+## Root cause (the tab-completion regression)
+
+Conduit overlays `proxy/build.gradle.kts`, and that overlay carried a shadow-jar exclude,
+`exclude("it/unimi/dsi/fastutil/objects/*ObjectArray*")`, that upstream Velocity-CTD removed in
+commit `082dd9fb` ("fix: fix tab completion", #1028). When the 1.4.0 rebrand re-synced Conduit onto a
+newer upstream base, that base began using fastutil's `ObjectArrayList` in the command-graph /
+tab-completion path — but Conduit's overlay was still stripping `ObjectArrayList` out of the release
+jar. The `AvailableCommandsPacket` therefore failed to encode (a `NoClassDefFoundError` deep in the
+packet encoder, with no error surfaced in the console), so the client silently received an unusable
+command tree. Version 1.3.5 was unaffected because its older upstream base did not yet reference that
+class, which is why the break appeared to start at 1.4.0.
+
+The exclude has been removed from the overlay to match upstream #1028; `ObjectArrayList` is now
+present in the jar and the command tree encodes correctly.
 
 ## Changed
 
+- Removed the stale `*ObjectArray*` shadow-jar exclude from the `proxy/build.gradle.kts` overlay.
 - Rebuilt the CONFIG-state outbound packet queue's command-tree handling: queued
-  `AvailableCommandsPacket`s are now collapsed to the single most recent tree, so FIFO flush order
-  can never surface a stale tree, and command trees no longer count against the queue depth cap.
-- Added a regression test (`collapsesQueuedCommandTreesToTheNewest`) covering the stale-tree case in
-  addition to the existing eviction-ordering test.
+  `AvailableCommandsPacket`s are collapsed to the single most recent tree, so FIFO flush order can
+  never surface a stale tree, and command trees no longer count against the queue depth cap. Covered
+  by a new regression test (`collapsesQueuedCommandTreesToTheNewest`).
+- The release artifact is now named `conduit-<version>.jar` instead of the upstream
+  `velocity-proxy-<...>-all.jar` coordinate.
 
 ## Verified
 
-- `max-known-packs` large-modpack support confirmed wired end-to-end (default 1024, `conduit.toml`
+- Command autofill / tab-completion confirmed working again on Minecraft 26.2 through the proxy.
+- Bundled Spark, native LuckPerms (plus the LuckPerms permission-integration resolver), and the
+  optional VelocityCommandForward integration remain embedded in the jar.
+- `max-known-packs` large-modpack support wired end-to-end (default 1024, `conduit.toml`
   configurable, `-Dvelocity.max-known-packs` JVM override precedence) — no 64-entry cap remains.
 - Full Conduit test suite green on JDK 25.
-
-## Technical
-
-Only the latest serialized command tree is ever meaningful to the client. Rather than merely
-avoiding eviction of `AvailableCommandsPacket`, `PlayPacketQueueOutboundHandler` now releases any
-older queued command trees when a newer one is enqueued, guaranteeing the client ends the CONFIG→PLAY
-transition on the correct tree. The change is confined to `PlayPacketQueueOutboundHandler`.
 
 # Conduit 1.5.2
 

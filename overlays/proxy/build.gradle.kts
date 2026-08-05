@@ -175,6 +175,11 @@ tasks {
     }
 
     shadowJar {
+        // Conduit: name the release artifact conduit-<version>.jar instead of the upstream
+        // velocity-proxy-<...>-all.jar coordinate.
+        archiveFileName.set(
+            "conduit-${providers.gradleProperty("conduit.version").getOrElse(project.version.toString())}.jar")
+
         filesMatching("META-INF/org/apache/logging/log4j/core/config/plugins/**") {
             duplicatesStrategy = DuplicatesStrategy.INCLUDE
         }
@@ -222,7 +227,11 @@ tasks {
         exclude("it/unimi/dsi/fastutil/ints/*BigList*")
 
         // Try to exclude everything BUT Object2Int{LinkedOpen,Open,CustomOpen}HashMap
-        exclude("it/unimi/dsi/fastutil/objects/*ObjectArray*")
+        // NOTE: do NOT exclude *ObjectArray* — fastutil's ObjectArrayList is required by the
+        // command-graph / tab-completion path in current upstream. Excluding it strips the class
+        // from the shadow jar, so the AvailableCommandsPacket fails to encode and the client
+        // silently receives an unusable command tree (commands render red, no autofill). This
+        // matches upstream Velocity-CTD commit 082dd9fb "fix: fix tab completion (#1028)".
         exclude("it/unimi/dsi/fastutil/objects/*ObjectAVL*")
         exclude("it/unimi/dsi/fastutil/objects/*Object*Big*")
         exclude("it/unimi/dsi/fastutil/objects/*Object2Boolean*")
