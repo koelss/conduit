@@ -1,3 +1,27 @@
+# Conduit 1.7.1
+
+## Fixed
+
+- **Seamless switches no longer strand players who move too early.** Going back to the hub (or any
+  seamless switch) briefly held the player "stuck in place until you reconnect" if you moved before
+  the destination server finished streaming you in — the movement raced ahead of the not-yet-loaded
+  world. The switch now applies a short **settle delay** during which the player's own input is held
+  and buffered while the destination loads them in, then released. This removes the desync and, as a
+  bonus, stops the switch from feeling jarringly instantaneous.
+
+## Added
+
+- **Configurable seamless-switch settle delay.** New `conduit.toml` →
+  `[advanced] seamless-switch-settle-ms` (default **250**, range **0–5000**). Set to `0` to restore
+  the previous instantaneous behaviour. This directly softens the "too quick" seamless switch.
+- **Ender pearl teleport sound on server switch.** New `conduit.toml` →
+  `[advanced] seamless-switch-sound-enabled` (default **true**), `seamless-switch-sound` (default
+  `minecraft:entity.enderman.teleport` — the ender pearl teleport sound), `seamless-switch-sound-volume`,
+  and `seamless-switch-sound-pitch`. Plays a short cue to the player whenever they are seamlessly
+  moved between servers. All of these settings are live-reloadable.
+
+---
+
 # Conduit 1.7.0
 
 ## Added

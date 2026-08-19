@@ -356,3 +356,25 @@ bundle-enabled = true
 # Original commit: feat: seamless server switches
 # Contributor: ohemilyy <ohemilyy@proton.me>
 seamless-server-switches = false
+
+# Settle delay (in milliseconds) applied to a seamless server switch.
+# The seamless switch is otherwise instantaneous, which can feel jarring and, more
+# importantly, causes a desync: if the player moves before the destination backend
+# has finished streaming in the world and their position, they can end up "stuck"
+# in place until they reconnect. During this window Conduit briefly holds the
+# client's own input after the switch packets are sent, giving the new server a
+# moment to load the player in before their movement is processed. Set to 0 to
+# restore the old instantaneous behaviour. Range: 0–5000. Default: 250.
+seamless-switch-settle-ms = 250
+
+# Play a short sound to the player when they are switched between servers, giving a
+# clear cue that a (seamless) transition happened — like an ender pearl teleport.
+seamless-switch-sound-enabled = true
+
+# The sound to play on a seamless server switch. Any Minecraft sound key works;
+# the default is the ender pearl / enderman teleport sound.
+seamless-switch-sound = "minecraft:entity.enderman.teleport"
+
+# Volume and pitch of the seamless switch sound.
+seamless-switch-sound-volume = 1.0
+seamless-switch-sound-pitch = 1.0

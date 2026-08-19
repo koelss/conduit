@@ -4,6 +4,30 @@ All changes relative to upstream `GemstoneGG/Velocity-CTD @ libdeflate`.
 
 ---
 
+## 1.7.1 — Seamless switch settle delay & teleport sound
+
+### Fixed — seamless switch "stuck until reconnect"
+
+* A seamless switch (for example returning to the hub) previously completed instantaneously. If the
+  player moved before the destination backend finished streaming them in, their input raced ahead of
+  the not-yet-ready world and they became **stuck in place until they reconnected**.
+* `ClientPlaySessionHandler#applySeamlessSwitchEffects` now pauses reading of the client's inbound
+  packets for a short **settle window** (`[advanced] seamless-switch-settle-ms`, default 250 ms)
+  right after the switch, so early movement is buffered until the new server has loaded the player
+  in, then reading resumes. This removes the desync and softens the otherwise instantaneous switch.
+
+### Added — configurable settle delay and switch sound (`[advanced]`)
+
+* `seamless-switch-settle-ms` (default `250`, range `0–5000`; `0` restores the old instantaneous
+  behaviour).
+* `seamless-switch-sound-enabled` (default `true`), `seamless-switch-sound` (default
+  `minecraft:entity.enderman.teleport`, the ender pearl teleport sound), `seamless-switch-sound-volume`
+  (default `1.0`) and `seamless-switch-sound-pitch` (default `1.0`). A cue is played to the player on
+  every play-state (seamless) server switch.
+* All new options are live-reloadable and surfaced in `ConduitConfigDiff`.
+
+---
+
 ## 1.7.0 — Experimental seamless server switches
 
 ### Added — seamless server switches (`[advanced] seamless-server-switches`)
