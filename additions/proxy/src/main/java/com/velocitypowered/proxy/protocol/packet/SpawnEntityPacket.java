@@ -25,6 +25,12 @@ import io.netty.buffer.ByteBuf;
 import java.util.UUID;
 
 /**
+ * Clientbound spawn/add-entity packet used to track live entity IDs across backends.
+ *
+ * <p>Minecraft 1.21.9 moved velocity ahead of rotation and switched it to a variable-length
+ * vector. That payload is stored as raw bytes so it is not decoded or re-encoded with the
+ * obsolete short-vector format.
+ *
  * @author Luna
  * @date 07/08/2026
  */
@@ -33,9 +39,9 @@ public class SpawnEntityPacket implements MinecraftPacket {
   private int entityId;
   private UUID uuid;
   private int type;
-  private double x;
-  private double y;
-  private double z;
+  private double posX;
+  private double posY;
+  private double posZ;
   private byte pitch;
   private byte yaw;
   private byte headYaw;
@@ -58,9 +64,9 @@ public class SpawnEntityPacket implements MinecraftPacket {
     this.entityId = ProtocolUtils.readVarInt(buf);
     this.uuid = ProtocolUtils.readUuid(buf);
     this.type = ProtocolUtils.readVarInt(buf);
-    this.x = buf.readDouble();
-    this.y = buf.readDouble();
-    this.z = buf.readDouble();
+    this.posX = buf.readDouble();
+    this.posY = buf.readDouble();
+    this.posZ = buf.readDouble();
     if (version.lessThan(ProtocolVersion.MINECRAFT_1_21_9)) {
       this.pitch = buf.readByte();
       this.yaw = buf.readByte();
@@ -93,9 +99,9 @@ public class SpawnEntityPacket implements MinecraftPacket {
     ProtocolUtils.writeVarInt(buf, entityId);
     ProtocolUtils.writeUuid(buf, uuid);
     ProtocolUtils.writeVarInt(buf, type);
-    buf.writeDouble(x);
-    buf.writeDouble(y);
-    buf.writeDouble(z);
+    buf.writeDouble(posX);
+    buf.writeDouble(posY);
+    buf.writeDouble(posZ);
     if (version.lessThan(ProtocolVersion.MINECRAFT_1_21_9)) {
       buf.writeByte(pitch);
       buf.writeByte(yaw);

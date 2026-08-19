@@ -26,6 +26,8 @@ import java.util.Collection;
 import java.util.List;
 
 /**
+ * Clientbound remove-entities packet used to track and clear live entity IDs.
+ *
  * @author Luna
  * @date 07/08/2026
  */
