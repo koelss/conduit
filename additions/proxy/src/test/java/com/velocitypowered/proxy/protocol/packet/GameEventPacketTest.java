@@ -89,4 +89,28 @@ class GameEventPacketTest {
     assertEquals(90.0f, encoded.readFloat());
     encoded.release();
   }
+
+  @Test
+  void resetBreathAndSwimWritesAirAndFlags() {
+    EntityMetadataPacket packet = EntityMetadataPacket.resetBreathAndSwim(12);
+    ByteBuf buf = Unpooled.buffer();
+    packet.encode(buf, ProtocolUtils.Direction.CLIENTBOUND, ProtocolVersion.MINECRAFT_1_20_2);
+
+    EntityMetadataPacket decoded = new EntityMetadataPacket();
+    decoded.decode(buf, ProtocolUtils.Direction.CLIENTBOUND, ProtocolVersion.MINECRAFT_1_20_2);
+    buf.release();
+
+    assertEquals(12, decoded.getEntityId());
+    ByteBuf extra = Unpooled.buffer();
+    decoded.encode(extra, ProtocolUtils.Direction.CLIENTBOUND, ProtocolVersion.MINECRAFT_1_20_2);
+    assertEquals(12, ProtocolUtils.readVarInt(extra));
+    assertEquals(0, extra.readUnsignedByte());
+    assertEquals(0, ProtocolUtils.readVarInt(extra));
+    assertEquals(0, extra.readByte());
+    assertEquals(1, extra.readUnsignedByte());
+    assertEquals(1, ProtocolUtils.readVarInt(extra));
+    assertEquals(300, ProtocolUtils.readVarInt(extra));
+    assertEquals(0xFF, extra.readUnsignedByte());
+    extra.release();
+  }
 }

@@ -26,6 +26,11 @@ All changes relative to upstream `GemstoneGG/Velocity-CTD @ libdeflate`.
   leftover **status effects**, and **rewrite the local player entity ID** on damage, hurt animation,
   entity sounds, velocity, and metadata so destination hurt sounds play. The vanilla
   "waiting for chunks" / world-generation overlay is not forwarded after a seamless switch.
+  Boss-bar UUIDs from packets held behind Join Game are tracked on replay, leftover bars are
+  removed again shortly after the switch, and air/swim metadata is reset so bubble HUD does not
+  linger. Seamless joins no longer wait on `ServerConnectedEvent` before unlocking movement;
+  destination world packets are released after a short 300ms hold so the switch is not a one-frame
+  snap. 1.21.4+ backends receive `player_loaded` immediately so they do not ignore input for a second.
 * **Credit:** based on the seamless server switching patch by **ohemilyy**
   (`b5a97c65eea43a1a3d5e21589b67e2888729e1e4`, `feat: seamless server switches`),
   `ohemilyy <ohemilyy@proton.me>`. Source files retain the original `@author Luna` attribution.

@@ -49,6 +49,7 @@ import com.velocitypowered.proxy.protocol.netty.MinecraftDecoder;
 import com.velocitypowered.proxy.protocol.packet.BossBarPacket;
 import com.velocitypowered.proxy.protocol.packet.ClientSettingsPacket;
 import com.velocitypowered.proxy.protocol.packet.EntityEventPacket;
+import com.velocitypowered.proxy.protocol.packet.EntityMetadataPacket;
 import com.velocitypowered.proxy.protocol.packet.GameEventPacket;
 import com.velocitypowered.proxy.protocol.packet.HeaderAndFooterPacket;
 import com.velocitypowered.proxy.protocol.packet.JoinGamePacket;
@@ -61,6 +62,7 @@ import com.velocitypowered.proxy.protocol.packet.RespawnPacket;
 import com.velocitypowered.proxy.protocol.packet.ScoreboardObjectivePacket;
 import com.velocitypowered.proxy.protocol.packet.ScoreboardTeamPacket;
 import com.velocitypowered.proxy.protocol.packet.ServerboundCookieResponsePacket;
+import com.velocitypowered.proxy.protocol.packet.ServerboundPlayerLoadedPacket;
 import com.velocitypowered.proxy.protocol.packet.TabCompleteRequestPacket;
 import com.velocitypowered.proxy.protocol.packet.TabCompleteResponsePacket;
 import com.velocitypowered.proxy.protocol.packet.TabCompleteResponsePacket.Offer;
@@ -99,6 +101,7 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import net.kyori.adventure.key.Key;
@@ -543,9 +546,8 @@ public class ClientPlaySessionHandler implements MinecraftSessionHandler {
 
   @Override
   public void handleGeneric(MinecraftPacket packet) {
-    VelocityServerConnection serverConnection = player.getConnectedServer();
+    VelocityServerConnection serverConnection = player.getConnectionInFlightOrConnectedServer();
     if (serverConnection == null) {
-      // No server connection yet, probably transitioning.
       return;
     }
 
@@ -564,9 +566,8 @@ public class ClientPlaySessionHandler implements MinecraftSessionHandler {
 
   @Override
   public void handleUnknown(ByteBuf buf) {
-    VelocityServerConnection serverConnection = player.getConnectedServer();
+    VelocityServerConnection serverConnection = player.getConnectionInFlightOrConnectedServer();
     if (serverConnection == null) {
-      // No server connection yet, probably transitioning.
       return;
     }
 
@@ -711,14 +712,12 @@ public class ClientPlaySessionHandler implements MinecraftSessionHandler {
     } else {
       // Remove previous boss bars. These don't get cleared when sending JoinGame (up until 1.20.2),
       // thus the need to track them.
-      for (UUID serverBossBar : serverBossBars) {
-        BossBarPacket deletePacket = new BossBarPacket();
-        deletePacket.setUuid(serverBossBar);
-        deletePacket.setAction(BossBarPacket.REMOVE);
-        player.getConnection().delayedWrite(deletePacket);
-      }
-
+      writeBossBarRemoves(serverBossBars);
       serverBossBars.clear();
+    }
+
+    if (seamless && player.getProtocolVersion().noLessThan(ProtocolVersion.MINECRAFT_1_21_4)) {
+      serverMc.delayedWrite(ServerboundPlayerLoadedPacket.INSTANCE);
     }
 
     // Tell the server about the proxy's plugin message channels.
@@ -755,7 +754,10 @@ public class ClientPlaySessionHandler implements MinecraftSessionHandler {
     destination.completeJoin();
   }
 
-  private boolean canDoSeamlessPlaySwitch(JoinGamePacket joinGame, VelocityServerConnection destination) {
+  /**
+   * Returns whether this Join Game can skip the client configuration/respawn sequence.
+   */
+  public boolean canDoSeamlessPlaySwitch(JoinGamePacket joinGame, VelocityServerConnection destination) {
     if (!Conduit.get().getConfig().isSeamlessServerSwitches()) {
       return false;
     }
@@ -794,17 +796,10 @@ public class ClientPlaySessionHandler implements MinecraftSessionHandler {
       }
       trackedScoreboardObjectives.clear();
     }
-    if (!serverBossBars.isEmpty()) {
-      for (UUID barId : serverBossBars) {
-        BossBarPacket deletePacket = new BossBarPacket();
-        deletePacket.setUuid(barId);
-        deletePacket.setAction(BossBarPacket.REMOVE);
-        player.getConnection().delayedWrite(deletePacket);
-      }
-      serverBossBars.clear();
-    }
+    clearServerBossBars();
     if (clientEntityId != null) {
       player.getConnection().delayedWrite(EntityEventPacket.clearOperator(clientEntityId));
+      player.getConnection().delayedWrite(EntityMetadataPacket.resetBreathAndSwim(clientEntityId));
     }
     if (clientEntityId != null && !trackedPlayerEffects.isEmpty()) {
       for (int effectId : trackedPlayerEffects) {
@@ -866,6 +861,31 @@ public class ClientPlaySessionHandler implements MinecraftSessionHandler {
 
   public Set<UUID> getServerBossBars() {
     return serverBossBars;
+  }
+
+  private void clearServerBossBars() {
+    if (serverBossBars.isEmpty()) {
+      return;
+    }
+    Set<UUID> snapshot = Set.copyOf(serverBossBars);
+    writeBossBarRemoves(snapshot);
+    serverBossBars.clear();
+    player.getConnection().eventLoop().schedule(() -> {
+      if (player.getConnection().isClosed()) {
+        return;
+      }
+      writeBossBarRemoves(snapshot);
+      player.getConnection().flush();
+    }, 250, TimeUnit.MILLISECONDS);
+  }
+
+  private void writeBossBarRemoves(Set<UUID> ids) {
+    for (UUID barId : ids) {
+      BossBarPacket deletePacket = new BossBarPacket();
+      deletePacket.setUuid(barId);
+      deletePacket.setAction(BossBarPacket.REMOVE);
+      player.getConnection().delayedWrite(deletePacket);
+    }
   }
 
   public Set<Integer> getTrackedEntityIds() {

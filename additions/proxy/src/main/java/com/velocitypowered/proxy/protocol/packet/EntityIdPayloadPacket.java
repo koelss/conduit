@@ -43,6 +43,10 @@ public abstract class EntityIdPayloadPacket implements MinecraftPacket {
     this.entityId = entityId;
   }
 
+  public void setExtra(byte[] extra) {
+    this.extra = extra == null ? new byte[0] : extra;
+  }
+
   @Override
   public void decode(ByteBuf buf, ProtocolUtils.Direction direction, ProtocolVersion version) {
     this.entityId = ProtocolUtils.readVarInt(buf);

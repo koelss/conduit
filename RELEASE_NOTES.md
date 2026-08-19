@@ -20,7 +20,11 @@
   level** (F3+F4), and **status effects** are cleared or rewritten from the destination. Packets that
   target the local player (damage, hurt animation, entity sounds, knockback, metadata) are rewritten
   to the client's original entity ID so hurt sounds play. The vanilla world-generation overlay is
-  not forwarded after a seamless switch.
+  not forwarded after a seamless switch. Leftover boss bars are tracked through Join Game replay and
+  removed again after a short delay; air/swim metadata is reset. Seamless joins no longer stall on
+  Velocity `ServerConnectedEvent` (that wait dropped movement for about a second). Destination world
+  packets follow HUD clear by 300ms, and 1.21.4+ backends are sent `player_loaded` so they accept
+  input immediately.
 
 ### Credits
 

@@ -17,6 +17,10 @@
 
 package com.velocitypowered.proxy.protocol.packet;
 
+import com.velocitypowered.proxy.protocol.ProtocolUtils;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
+
 /**
  * Clientbound set-entity-data packet.
  *
@@ -24,4 +28,33 @@ package com.velocitypowered.proxy.protocol.packet;
  * @date 19/08/2026
  */
 public class EntityMetadataPacket extends EntityIdPayloadPacket {
+
+  private static final int ENTITY_FLAGS_INDEX = 0;
+  private static final int ENTITY_AIR_INDEX = 1;
+  private static final int SERIALIZER_BYTE = 0;
+  private static final int SERIALIZER_VARINT = 1;
+  private static final int FULL_AIR_TICKS = 300;
+  private static final int METADATA_END = 0xFF;
+
+  /**
+   * Clears swimming and restores full air so the bubble HUD does not linger after a switch.
+   */
+  public static EntityMetadataPacket resetBreathAndSwim(int entityId) {
+    ByteBuf extra = Unpooled.buffer();
+    extra.writeByte(ENTITY_FLAGS_INDEX);
+    ProtocolUtils.writeVarInt(extra, SERIALIZER_BYTE);
+    extra.writeByte(0);
+    extra.writeByte(ENTITY_AIR_INDEX);
+    ProtocolUtils.writeVarInt(extra, SERIALIZER_VARINT);
+    ProtocolUtils.writeVarInt(extra, FULL_AIR_TICKS);
+    extra.writeByte(METADATA_END);
+    byte[] payload = new byte[extra.readableBytes()];
+    extra.readBytes(payload);
+    extra.release();
+
+    EntityMetadataPacket packet = new EntityMetadataPacket();
+    packet.setEntityId(entityId);
+    packet.setExtra(payload);
+    return packet;
+  }
 }

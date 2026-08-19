@@ -128,87 +128,102 @@ public class TransitionSessionHandler implements MinecraftSessionHandler {
     // Override online mode
     packet.setOnlineMode(player.isOnlineMode());
 
-    // The goods are in hand! We got JoinGame. Let's transition completely to the new state.
-    smc.setAutoReading(false);
-    server.getEventManager()
-        .fire(new ServerConnectedEvent(player, serverConn.getServer(), previousServer))
-        .thenRunAsync(() -> {
-          // Make sure we can still transition (player might have disconnected here).
+    ClientPlaySessionHandler playHandler;
+    if (player.getConnection().getActiveSessionHandler() instanceof ClientPlaySessionHandler sessionHandler) {
+      playHandler = sessionHandler;
+    } else {
+      playHandler = new ClientPlaySessionHandler(server, player);
+      player.getConnection().setActiveSessionHandler(StateRegistry.PLAY, playHandler);
+    }
+    final boolean seamless = playHandler.canDoSeamlessPlaySwitch(packet, serverConn);
+
+    Runnable applyJoin = () -> {
+      if (!serverConn.isActive()) {
+        serverConn.disconnect();
+        return;
+      }
+
+      playHandler.handleBackendJoinGame(packet, serverConn);
+
+      smc.setActiveSessionHandler(StateRegistry.PLAY, new BackendPlaySessionHandler(server, serverConn));
+
+      if (smc.getProtocolVersion().noLessThan(ProtocolVersion.MINECRAFT_1_20_2)) {
+        smc.addSessionHandler(StateRegistry.CONFIG,
+            new ConfigSessionHandler(server, serverConn, resultFuture));
+      }
+
+      final var backendPipeline = smc.getChannel().pipeline();
+      if (backendPipeline.context(Connections.READ_TIMEOUT) != null) {
+        backendPipeline.replace(Connections.READ_TIMEOUT, Connections.READ_TIMEOUT,
+            new ReadTimeoutHandler(server.getConfiguration().getReadTimeout(), TimeUnit.MILLISECONDS));
+      }
+
+      serverConn.getPlayer().setConnectedServer(serverConn);
+      if (seamless) {
+        smc.eventLoop().schedule(() -> {
           if (!serverConn.isActive()) {
-            // Connection is obsolete.
-            serverConn.disconnect();
             return;
           }
-
-          // Change the client to use the ClientPlaySessionHandler if required.
-          ClientPlaySessionHandler playHandler;
-          if (player.getConnection().getActiveSessionHandler() instanceof ClientPlaySessionHandler sessionHandler) {
-            playHandler = sessionHandler;
-          } else {
-            playHandler = new ClientPlaySessionHandler(server, player);
-            player.getConnection().setActiveSessionHandler(StateRegistry.PLAY, playHandler);
-          }
-
-          playHandler.handleBackendJoinGame(packet, serverConn);
-
-          // Set the new play session handler for the server. We will have nothing more to do
-          // with this connection once this task finishes up.
-          smc.setActiveSessionHandler(StateRegistry.PLAY, new BackendPlaySessionHandler(server, serverConn));
-
-          if (smc.getProtocolVersion().noLessThan(ProtocolVersion.MINECRAFT_1_20_2)) {
-            smc.addSessionHandler(StateRegistry.CONFIG,
-                new ConfigSessionHandler(server, serverConn, resultFuture));
-          }
-
-          // The login/configuration sequence is complete: swap the short login timeout that
-          // BackendChannelInitializer installed for the regular in-play read-timeout, so a healthy
-          // but momentarily idle backend isn't dropped (issue GemstoneGG#938).
-          final var backendPipeline = smc.getChannel().pipeline();
-          if (backendPipeline.context(Connections.READ_TIMEOUT) != null) {
-            backendPipeline.replace(Connections.READ_TIMEOUT, Connections.READ_TIMEOUT,
-                new ReadTimeoutHandler(server.getConfiguration().getReadTimeout(), TimeUnit.MILLISECONDS));
-          }
-
-          // Now set the connected server.
-          serverConn.getPlayer().setConnectedServer(serverConn);
-
-          // JoinGame processed: replay any packets held behind it before resuming reads.
           flushDeferredPackets();
-
-          // Clean up disabling auto-read while the connected event was being processed.
-          // Do this after setting the connection, so no incoming packets are processed before
-          // the API knows which server the player is connected to.
           smc.setAutoReading(true);
+        }, 300, TimeUnit.MILLISECONDS);
+      } else {
+        flushDeferredPackets();
+        smc.setAutoReading(true);
+      }
 
-          // Send client settings. In 1.20.2+ this is done in the config state.
-          if (smc.getProtocolVersion().lessThan(ProtocolVersion.MINECRAFT_1_20_2)
-              && player.getClientSettingsPacket() != null) {
-            serverConn.ensureConnected().write(player.getClientSettingsPacket());
-          }
+      if (smc.getProtocolVersion().lessThan(ProtocolVersion.MINECRAFT_1_20_2)
+          && player.getClientSettingsPacket() != null) {
+        serverConn.ensureConnected().write(player.getClientSettingsPacket());
+      }
+    };
 
-          server.getClusterPlayerService().onPlayerSwitchServer(
-              player,
-              previousServer != null ? previousServer.getServerInfo().getName() : null,
-              serverConn.getServerInfo().getName());
+    Runnable afterPlugins = () -> {
+      if (!serverConn.isActive()) {
+        return;
+      }
+      server.getClusterPlayerService().onPlayerSwitchServer(
+          player,
+          previousServer != null ? previousServer.getServerInfo().getName() : null,
+          serverConn.getServerInfo().getName());
 
-          if (this.server.isQueueEnabled()) {
-            VelocityQueue<?> queue = this.server.getQueueManager().getQueue(serverConn.getServer()
-                    .getServerInfo().getName());
-            queue.dequeue(player.getUniqueId());
-          }
+      if (this.server.isQueueEnabled()) {
+        VelocityQueue<?> queue = this.server.getQueueManager().getQueue(serverConn.getServer()
+                .getServerInfo().getName());
+        queue.dequeue(player.getUniqueId());
+      }
 
-          // We're done! :)
-          server.getEventManager().fireAndForget(new ServerPostConnectEvent(player, previousServer));
-          resultFuture.complete(ConnectionRequestResults.successful(serverConn.getServer()));
-        }, smc.eventLoop()).exceptionally(exc -> {
-          LOGGER.error("Unable to switch to new server {} for {}",
-              serverConn.getServerInfo().getName(),
-              player.getUsername(), exc);
-          releaseDeferredPackets();
-          player.disconnect(ConnectionMessages.INTERNAL_SERVER_CONNECTION_ERROR);
-          resultFuture.completeExceptionally(exc);
-          return null;
-        });
+      server.getEventManager().fireAndForget(new ServerPostConnectEvent(player, previousServer));
+      resultFuture.complete(ConnectionRequestResults.successful(serverConn.getServer()));
+    };
+
+    if (seamless) {
+      try {
+        applyJoin.run();
+      } catch (Throwable exc) {
+        failJoin(player, exc);
+        return true;
+      }
+      server.getEventManager()
+          .fire(new ServerConnectedEvent(player, serverConn.getServer(), previousServer))
+          .thenRunAsync(afterPlugins, smc.eventLoop())
+          .exceptionally(exc -> {
+            failJoin(player, exc);
+            return null;
+          });
+    } else {
+      smc.setAutoReading(false);
+      server.getEventManager()
+          .fire(new ServerConnectedEvent(player, serverConn.getServer(), previousServer))
+          .thenRunAsync(() -> {
+            applyJoin.run();
+            afterPlugins.run();
+          }, smc.eventLoop())
+          .exceptionally(exc -> {
+            failJoin(player, exc);
+            return null;
+          });
+    }
 
     return true;
   }
@@ -278,12 +293,14 @@ public class TransitionSessionHandler implements MinecraftSessionHandler {
       return;
     }
 
-    final MinecraftConnection clientConn = serverConn.getPlayer().getConnection();
+    final MinecraftSessionHandler handler = serverConn.ensureConnected().getActiveSessionHandler();
     MinecraftPacket packet;
     while ((packet = deferredPackets.poll()) != null) {
-      clientConn.delayedWrite(packet);
+      if (handler != null && !packet.handle(handler)) {
+        handler.handleGeneric(packet);
+      }
     }
-    clientConn.flush();
+    serverConn.getPlayer().getConnection().flush();
   }
 
   private void releaseDeferredPackets() {
@@ -299,5 +316,14 @@ public class TransitionSessionHandler implements MinecraftSessionHandler {
     releaseDeferredPackets();
     resultFuture.complete(ConnectionRequestResults.forDisconnect(
         ConnectionMessages.INTERNAL_SERVER_CONNECTION_ERROR, serverConn.getServer()));
+  }
+
+  private void failJoin(ConnectedPlayer player, Throwable exc) {
+    LOGGER.error("Unable to switch to new server {} for {}",
+        serverConn.getServerInfo().getName(),
+        player.getUsername(), exc);
+    releaseDeferredPackets();
+    player.disconnect(ConnectionMessages.INTERNAL_SERVER_CONNECTION_ERROR);
+    resultFuture.completeExceptionally(exc);
   }
 }

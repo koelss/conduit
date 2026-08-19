@@ -49,6 +49,9 @@ class OverlayIntegrityTest {
     assertTrue(source.contains("trackedPlayerEffects"));
     assertTrue(source.contains("EntityEventPacket.clearOperator"));
     assertTrue(source.contains("isSeamlessPlayActive"));
+    assertTrue(source.contains("EntityMetadataPacket.resetBreathAndSwim"));
+    assertTrue(source.contains("getConnectionInFlightOrConnectedServer"));
+    assertTrue(source.contains("ServerboundPlayerLoadedPacket"));
   }
 
   @Test
@@ -68,5 +71,15 @@ class OverlayIntegrityTest {
 
     assertTrue(source.contains("isSeamlessServerSwitches"));
     assertTrue(source.contains("SeamlessConfigSessionHandler"));
+  }
+
+  @Test
+  void transitionOverlayAppliesSeamlessJoinWithoutPluginStall() throws Exception {
+    String source = Files.readString(Path.of("../overlays/proxy/src/main/java/com/velocitypowered/"
+        + "proxy/connection/backend/TransitionSessionHandler.java"));
+
+    assertTrue(source.contains("canDoSeamlessPlaySwitch"));
+    assertTrue(source.contains("TimeUnit.MILLISECONDS"));
+    assertTrue(source.contains("packet.handle(handler)"));
   }
 }
