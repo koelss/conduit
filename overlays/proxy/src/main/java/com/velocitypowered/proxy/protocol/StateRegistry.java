@@ -66,11 +66,17 @@ import com.velocitypowered.proxy.protocol.packet.ClientboundStopSoundPacket;
 import com.velocitypowered.proxy.protocol.packet.ClientboundStoreCookiePacket;
 import com.velocitypowered.proxy.protocol.packet.DialogClearPacket;
 import com.velocitypowered.proxy.protocol.packet.DialogShowPacket;
+import com.velocitypowered.proxy.protocol.packet.DamageEventPacket;
 import com.velocitypowered.proxy.protocol.packet.DisconnectPacket;
 import com.velocitypowered.proxy.protocol.packet.EncryptionRequestPacket;
 import com.velocitypowered.proxy.protocol.packet.EncryptionResponsePacket;
+import com.velocitypowered.proxy.protocol.packet.EntityAnimationPacket;
 import com.velocitypowered.proxy.protocol.packet.EntityEffectPacket;
+import com.velocitypowered.proxy.protocol.packet.EntityEventPacket;
+import com.velocitypowered.proxy.protocol.packet.EntityMetadataPacket;
+import com.velocitypowered.proxy.protocol.packet.EntityVelocityPacket;
 import com.velocitypowered.proxy.protocol.packet.GameEventPacket;
+import com.velocitypowered.proxy.protocol.packet.HurtAnimationPacket;
 import com.velocitypowered.proxy.protocol.packet.HandshakePacket;
 import com.velocitypowered.proxy.protocol.packet.HeaderAndFooterPacket;
 import com.velocitypowered.proxy.protocol.packet.JoinGamePacket;
@@ -433,6 +439,47 @@ public enum StateRegistry {
           SpawnEntityPacket.class, SpawnEntityPacket::new,
           map(0x01, MINECRAFT_1_20_2, false));
       clientbound.register(
+          EntityAnimationPacket.class, EntityAnimationPacket::new,
+          map(0x03, MINECRAFT_1_20_2, false),
+          map(0x02, MINECRAFT_1_21_5, false));
+      clientbound.register(
+          DamageEventPacket.class, DamageEventPacket::new,
+          map(0x19, MINECRAFT_1_20_2, false),
+          map(0x1A, MINECRAFT_1_20_5, false),
+          map(0x19, MINECRAFT_1_21_5, false));
+      clientbound.register(
+          EntityEventPacket.class, EntityEventPacket::new,
+          map(0x1D, MINECRAFT_1_20_2, false),
+          map(0x1F, MINECRAFT_1_20_5, false),
+          map(0x1E, MINECRAFT_1_21_5, false),
+          map(0x22, MINECRAFT_1_21_9, false));
+      clientbound.register(
+          HurtAnimationPacket.class, HurtAnimationPacket::new,
+          map(0x22, MINECRAFT_1_20_2, false),
+          map(0x24, MINECRAFT_1_20_5, false),
+          map(0x25, MINECRAFT_1_21_2, false),
+          map(0x24, MINECRAFT_1_21_5, false),
+          map(0x29, MINECRAFT_1_21_9, false),
+          map(0x2A, MINECRAFT_26_1, false));
+      clientbound.register(
+          EntityMetadataPacket.class, EntityMetadataPacket::new,
+          map(0x54, MINECRAFT_1_20_2, false),
+          map(0x56, MINECRAFT_1_20_3, false),
+          map(0x58, MINECRAFT_1_20_5, false),
+          map(0x5D, MINECRAFT_1_21_2, false),
+          map(0x5C, MINECRAFT_1_21_5, false),
+          map(0x61, MINECRAFT_1_21_9, false),
+          map(0x63, MINECRAFT_26_1, false));
+      clientbound.register(
+          EntityVelocityPacket.class, EntityVelocityPacket::new,
+          map(0x56, MINECRAFT_1_20_2, false),
+          map(0x58, MINECRAFT_1_20_3, false),
+          map(0x5A, MINECRAFT_1_20_5, false),
+          map(0x5F, MINECRAFT_1_21_2, false),
+          map(0x5E, MINECRAFT_1_21_5, false),
+          map(0x63, MINECRAFT_1_21_9, false),
+          map(0x65, MINECRAFT_26_1, false));
+      clientbound.register(
           BossBarPacket.class,
           BossBarPacket::new,
           map(0x0C, MINECRAFT_1_9, false),
@@ -484,15 +531,15 @@ public enum StateRegistry {
           map(0x15, MINECRAFT_1_21_5, false));
       clientbound.register(
           ClientboundSoundEntityPacket.class, ClientboundSoundEntityPacket::new,
-          map(0x5D, MINECRAFT_1_19_3, true),
-          map(0x61, MINECRAFT_1_19_4, true),
-          map(0x63, MINECRAFT_1_20_2, true),
-          map(0x65, MINECRAFT_1_20_3, true),
-          map(0x67, MINECRAFT_1_20_5, true),
-          map(0x6E, MINECRAFT_1_21_2, true),
-          map(0x6D, MINECRAFT_1_21_5, true),
-          map(0x72, MINECRAFT_1_21_9, true),
-          map(0x74, MINECRAFT_26_1, true));
+          map(0x5D, MINECRAFT_1_19_3, false),
+          map(0x61, MINECRAFT_1_19_4, false),
+          map(0x63, MINECRAFT_1_20_2, false),
+          map(0x65, MINECRAFT_1_20_3, false),
+          map(0x67, MINECRAFT_1_20_5, false),
+          map(0x6E, MINECRAFT_1_21_2, false),
+          map(0x6D, MINECRAFT_1_21_5, false),
+          map(0x72, MINECRAFT_1_21_9, false),
+          map(0x74, MINECRAFT_26_1, false));
       clientbound.register(
           ClientboundStopSoundPacket.class, ClientboundStopSoundPacket::new,
           map(0x5F, MINECRAFT_1_19_3, true),

@@ -24,48 +24,42 @@ import com.velocitypowered.proxy.protocol.ProtocolUtils;
 import io.netty.buffer.ByteBuf;
 
 /**
- * Clientbound game-event packet (weather, gamemode, limited crafting, and similar).
+ * Clientbound packet whose first field is a VarInt entity ID, with the remainder preserved
+ * as raw bytes so version-specific tails can be forwarded unchanged.
+ *
+ * @author Luna
+ * @date 19/08/2026
  */
-public class GameEventPacket implements MinecraftPacket {
+public abstract class EntityIdPayloadPacket implements MinecraftPacket {
 
-  public static final int EVENT_END_RAINING = 2;
-  public static final int EVENT_CHANGE_GAMEMODE = 3;
-  public static final int EVENT_LIMITED_CRAFTING = 12;
-  public static final int EVENT_START_WAITING_FOR_CHUNKS = 13;
+  private int entityId;
+  private byte[] extra = new byte[0];
 
-  private int event;
-  private float value;
-
-  public GameEventPacket() {
+  public int getEntityId() {
+    return entityId;
   }
 
-  public GameEventPacket(int event, float value) {
-    this.event = event;
-    this.value = value;
-  }
-
-  public int getEvent() {
-    return event;
-  }
-
-  public float getValue() {
-    return value;
-  }
-
-  public static GameEventPacket changeGamemode(int gamemode) {
-    return new GameEventPacket(EVENT_CHANGE_GAMEMODE, gamemode);
+  public void setEntityId(int entityId) {
+    this.entityId = entityId;
   }
 
   @Override
   public void decode(ByteBuf buf, ProtocolUtils.Direction direction, ProtocolVersion version) {
-    this.event = buf.readUnsignedByte();
-    this.value = buf.readFloat();
+    this.entityId = ProtocolUtils.readVarInt(buf);
+    if (buf.isReadable()) {
+      this.extra = new byte[buf.readableBytes()];
+      buf.readBytes(this.extra);
+    } else {
+      this.extra = new byte[0];
+    }
   }
 
   @Override
   public void encode(ByteBuf buf, ProtocolUtils.Direction direction, ProtocolVersion version) {
-    buf.writeByte(event);
-    buf.writeFloat(value);
+    ProtocolUtils.writeVarInt(buf, entityId);
+    if (extra.length > 0) {
+      buf.writeBytes(extra);
+    }
   }
 
   @Override

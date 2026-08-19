@@ -32,6 +32,8 @@ import com.velocitypowered.proxy.protocol.packet.DisconnectPacket;
 import com.velocitypowered.proxy.protocol.packet.EncryptionRequestPacket;
 import com.velocitypowered.proxy.protocol.packet.EncryptionResponsePacket;
 import com.velocitypowered.proxy.protocol.packet.EntityEffectPacket;
+import com.velocitypowered.proxy.protocol.packet.EntityEventPacket;
+import com.velocitypowered.proxy.protocol.packet.EntityIdPayloadPacket;
 import com.velocitypowered.proxy.protocol.packet.GameEventPacket;
 import com.velocitypowered.proxy.protocol.packet.HandshakePacket;
 import com.velocitypowered.proxy.protocol.packet.HeaderAndFooterPacket;
@@ -316,6 +318,14 @@ public interface MinecraftSessionHandler {
   }
 
   default boolean handle(RemoveEntityEffectPacket packet) {
+    return false;
+  }
+
+  default boolean handle(EntityEventPacket packet) {
+    return false;
+  }
+
+  default boolean handle(EntityIdPayloadPacket packet) {
     return false;
   }
 

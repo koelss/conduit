@@ -47,6 +47,18 @@ class OverlayIntegrityTest {
     assertTrue(source.contains("trackedScoreboardObjectives"));
     assertTrue(source.contains("GameEventPacket.changeGamemode"));
     assertTrue(source.contains("trackedPlayerEffects"));
+    assertTrue(source.contains("EntityEventPacket.clearOperator"));
+    assertTrue(source.contains("isSeamlessPlayActive"));
+  }
+
+  @Test
+  void backendOverlayRewritesPlayerTargetedPackets() throws Exception {
+    String source = Files.readString(Path.of("../overlays/proxy/src/main/java/com/velocitypowered/"
+        + "proxy/connection/backend/BackendPlaySessionHandler.java"));
+
+    assertTrue(source.contains("EVENT_START_WAITING_FOR_CHUNKS"));
+    assertTrue(source.contains("ClientboundSoundEntityPacket"));
+    assertTrue(source.contains("EntityIdPayloadPacket"));
   }
 
   @Test

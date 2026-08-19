@@ -54,4 +54,39 @@ class GameEventPacketTest {
     assertEquals(12, decoded.getEntityId());
     assertEquals(15, decoded.getEffectId());
   }
+
+  @Test
+  void entityEventRoundTripsOperatorClear() {
+    EntityEventPacket packet = EntityEventPacket.clearOperator(42);
+    ByteBuf buf = Unpooled.buffer();
+    packet.encode(buf, ProtocolUtils.Direction.CLIENTBOUND, ProtocolVersion.MINECRAFT_1_20_2);
+
+    EntityEventPacket decoded = new EntityEventPacket();
+    decoded.decode(buf, ProtocolUtils.Direction.CLIENTBOUND, ProtocolVersion.MINECRAFT_1_20_2);
+    buf.release();
+
+    assertEquals(42, decoded.getEntityId());
+    assertEquals(EntityEventPacket.STATUS_OP_PERMISSION_LEVEL_0, decoded.getStatus());
+  }
+
+  @Test
+  void hurtAnimationPreservesYaw() {
+    HurtAnimationPacket packet = new HurtAnimationPacket();
+    packet.setEntityId(7);
+    ByteBuf raw = Unpooled.buffer();
+    ProtocolUtils.writeVarInt(raw, 7);
+    raw.writeFloat(90.0f);
+
+    HurtAnimationPacket decoded = new HurtAnimationPacket();
+    decoded.decode(raw, ProtocolUtils.Direction.CLIENTBOUND, ProtocolVersion.MINECRAFT_1_20_2);
+    raw.release();
+
+    assertEquals(7, decoded.getEntityId());
+    decoded.setEntityId(9);
+    ByteBuf encoded = Unpooled.buffer();
+    decoded.encode(encoded, ProtocolUtils.Direction.CLIENTBOUND, ProtocolVersion.MINECRAFT_1_20_2);
+    assertEquals(9, ProtocolUtils.readVarInt(encoded));
+    assertEquals(90.0f, encoded.readFloat());
+    encoded.release();
+  }
 }

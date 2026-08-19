@@ -1,0 +1,137 @@
+/*
+ * Copyright (C) 2018-2026 Velocity Contributors
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
+package com.velocitypowered.proxy.protocol.packet;
+
+import com.velocitypowered.api.network.ProtocolVersion;
+import com.velocitypowered.proxy.connection.MinecraftSessionHandler;
+import com.velocitypowered.proxy.protocol.MinecraftPacket;
+import com.velocitypowered.proxy.protocol.ProtocolUtils;
+import io.netty.buffer.ByteBuf;
+import java.util.concurrent.ThreadLocalRandom;
+import net.kyori.adventure.sound.Sound;
+import org.jetbrains.annotations.Nullable;
+
+public class ClientboundSoundEntityPacket implements MinecraftPacket {
+
+  private Sound sound;
+
+  private @Nullable Float fixedRange;
+
+  private int emitterEntityId;
+
+  private byte[] prefix = new byte[0];
+
+  private byte[] extra = new byte[0];
+
+  private boolean decodedPayload;
+
+  public ClientboundSoundEntityPacket() {
+  }
+
+  public ClientboundSoundEntityPacket(Sound sound, @Nullable Float fixedRange, int emitterEntityId) {
+    this.sound = sound;
+    this.fixedRange = fixedRange;
+    this.emitterEntityId = emitterEntityId;
+  }
+
+  @Override
+  public void decode(ByteBuf buf, ProtocolUtils.Direction direction, ProtocolVersion protocolVersion) {
+    int start = buf.readerIndex();
+    int soundId = ProtocolUtils.readVarInt(buf);
+    if (soundId == 0) {
+      ProtocolUtils.readString(buf);
+      boolean hasRange = buf.readBoolean();
+      if (hasRange) {
+        buf.readFloat();
+      }
+    }
+    ProtocolUtils.readSoundSource(buf, protocolVersion);
+    int prefixLength = buf.readerIndex() - start;
+    buf.readerIndex(start);
+    this.prefix = new byte[prefixLength];
+    buf.readBytes(this.prefix);
+    this.emitterEntityId = ProtocolUtils.readVarInt(buf);
+    if (buf.isReadable()) {
+      this.extra = new byte[buf.readableBytes()];
+      buf.readBytes(this.extra);
+    } else {
+      this.extra = new byte[0];
+    }
+    this.decodedPayload = true;
+  }
+
+  @Override
+  public void encode(ByteBuf buf, ProtocolUtils.Direction direction, ProtocolVersion protocolVersion) {
+    if (decodedPayload) {
+      buf.writeBytes(prefix);
+      ProtocolUtils.writeVarInt(buf, emitterEntityId);
+      if (extra.length > 0) {
+        buf.writeBytes(extra);
+      }
+      return;
+    }
+
+    ProtocolUtils.writeVarInt(buf, 0); // Version-dependent, hardcoded sound ID
+
+    ProtocolUtils.writeMinimalKey(buf, sound.name());
+
+    buf.writeBoolean(fixedRange != null);
+    if (fixedRange != null) {
+      buf.writeFloat(fixedRange);
+    }
+
+    ProtocolUtils.writeSoundSource(buf, protocolVersion, sound.source());
+
+    ProtocolUtils.writeVarInt(buf, emitterEntityId);
+
+    buf.writeFloat(sound.volume());
+
+    buf.writeFloat(sound.pitch());
+
+    buf.writeLong(sound.seed().orElseGet(() -> ThreadLocalRandom.current().nextLong()));
+  }
+
+  @Override
+  public boolean handle(MinecraftSessionHandler handler) {
+    return handler.handle(this);
+  }
+
+  public Sound getSound() {
+    return sound;
+  }
+
+  public void setSound(Sound sound) {
+    this.sound = sound;
+  }
+
+  public @Nullable Float getFixedRange() {
+    return fixedRange;
+  }
+
+  public void setFixedRange(@Nullable Float fixedRange) {
+    this.fixedRange = fixedRange;
+  }
+
+  public int getEmitterEntityId() {
+    return emitterEntityId;
+  }
+
+  public void setEmitterEntityId(int emitterEntityId) {
+    this.emitterEntityId = emitterEntityId;
+  }
+}

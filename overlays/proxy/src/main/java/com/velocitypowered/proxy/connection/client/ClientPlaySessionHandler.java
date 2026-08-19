@@ -48,6 +48,7 @@ import com.velocitypowered.proxy.protocol.StateRegistry;
 import com.velocitypowered.proxy.protocol.netty.MinecraftDecoder;
 import com.velocitypowered.proxy.protocol.packet.BossBarPacket;
 import com.velocitypowered.proxy.protocol.packet.ClientSettingsPacket;
+import com.velocitypowered.proxy.protocol.packet.EntityEventPacket;
 import com.velocitypowered.proxy.protocol.packet.GameEventPacket;
 import com.velocitypowered.proxy.protocol.packet.HeaderAndFooterPacket;
 import com.velocitypowered.proxy.protocol.packet.JoinGamePacket;
@@ -131,7 +132,7 @@ public class ClientPlaySessionHandler implements MinecraftSessionHandler {
 
   private boolean spawned = false;
 
-  private final List<UUID> serverBossBars = new ArrayList<>();
+  private final Set<UUID> serverBossBars = ConcurrentHashMap.newKeySet();
 
   private final Queue<PluginMessagePacket> loginPluginMessages = new ConcurrentLinkedQueue<>();
 
@@ -161,6 +162,7 @@ public class ClientPlaySessionHandler implements MinecraftSessionHandler {
   private final Set<Integer> trackedPlayerEffects = ConcurrentHashMap.newKeySet();
   private @Nullable Integer currentDimension;
   private @Nullable Integer clientEntityId;
+  private boolean seamlessPlayActive;
 
   /**
    * Constructs a client play session handler.
@@ -638,6 +640,7 @@ public class ClientPlaySessionHandler implements MinecraftSessionHandler {
 
       // Config state clears everything in the client. No need to clear later.
       spawned = false;
+      this.seamlessPlayActive = false;
       player.clearPlayerListHeaderAndFooterSilent();
       player.getTabList().clearAllSilent();
       if (player.getProtocolVersion().noLessThan(ProtocolVersion.MINECRAFT_1_20_2)) {
@@ -667,13 +670,16 @@ public class ClientPlaySessionHandler implements MinecraftSessionHandler {
       // The player wasn't spawned in yet, so we don't need to do anything special.
       // Send JoinGame.
       spawned = true;
+      this.seamlessPlayActive = false;
       this.clientEntityId = joinGame.getEntityId();
       player.getConnection().delayedWrite(joinGame);
       // Required for Legacy Forge
       player.getPhase().onFirstJoin(player);
     } else if (seamless) {
+      this.seamlessPlayActive = true;
       this.doSeamlessPlaySwitch(joinGame);
     } else {
+      this.seamlessPlayActive = false;
       // Clear tab list to avoid duplicate entries
       player.getTabList().clearAll();
 
@@ -789,13 +795,16 @@ public class ClientPlaySessionHandler implements MinecraftSessionHandler {
       trackedScoreboardObjectives.clear();
     }
     if (!serverBossBars.isEmpty()) {
-      for (UUID barId : new ArrayList<>(serverBossBars)) {
+      for (UUID barId : serverBossBars) {
         BossBarPacket deletePacket = new BossBarPacket();
         deletePacket.setUuid(barId);
         deletePacket.setAction(BossBarPacket.REMOVE);
         player.getConnection().delayedWrite(deletePacket);
       }
       serverBossBars.clear();
+    }
+    if (clientEntityId != null) {
+      player.getConnection().delayedWrite(EntityEventPacket.clearOperator(clientEntityId));
     }
     if (clientEntityId != null && !trackedPlayerEffects.isEmpty()) {
       for (int effectId : trackedPlayerEffects) {
@@ -855,7 +864,7 @@ public class ClientPlaySessionHandler implements MinecraftSessionHandler {
     player.getConnection().delayedWrite(correctSwitchPacket);
   }
 
-  public List<UUID> getServerBossBars() {
+  public Set<UUID> getServerBossBars() {
     return serverBossBars;
   }
 
@@ -877,6 +886,10 @@ public class ClientPlaySessionHandler implements MinecraftSessionHandler {
 
   public @Nullable Integer getClientEntityId() {
     return clientEntityId;
+  }
+
+  public boolean isSeamlessPlayActive() {
+    return seamlessPlayActive;
   }
 
   public void setCurrentDimension(int dimension) {
