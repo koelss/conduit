@@ -225,21 +225,6 @@ public class BackendPlaySessionHandler implements MinecraftSessionHandler {
     return false;
   }
 
-  private boolean rewritePlayerEntityId(IntSupplier getter, IntConsumer setter) {
-    Integer backendEntityId = serverConn.getEntityId();
-    Integer clientEntityId = playerSessionHandler.getClientEntityId();
-    if (backendEntityId == null || clientEntityId == null) {
-      return false;
-    }
-    if (getter.getAsInt() != backendEntityId) {
-      return false;
-    }
-    if (!backendEntityId.equals(clientEntityId)) {
-      setter.accept(clientEntityId);
-    }
-    return true;
-  }
-
   @Override
   public boolean handle(KeepAlivePacket packet) {
     // Backend advanced to PLAY early while the client is still held in config: echo the keepalive
@@ -530,6 +515,21 @@ public class BackendPlaySessionHandler implements MinecraftSessionHandler {
           }
         }, playerConnection.eventLoop());
 
+    return true;
+  }
+
+  private boolean rewritePlayerEntityId(IntSupplier getter, IntConsumer setter) {
+    Integer backendEntityId = serverConn.getEntityId();
+    Integer clientEntityId = playerSessionHandler.getClientEntityId();
+    if (backendEntityId == null || clientEntityId == null) {
+      return false;
+    }
+    if (getter.getAsInt() != backendEntityId) {
+      return false;
+    }
+    if (!backendEntityId.equals(clientEntityId)) {
+      setter.accept(clientEntityId);
+    }
     return true;
   }
 
