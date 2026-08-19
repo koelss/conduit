@@ -135,7 +135,7 @@ public class TransitionSessionHandler implements MinecraftSessionHandler {
       playHandler = new ClientPlaySessionHandler(server, player);
       player.getConnection().setActiveSessionHandler(StateRegistry.PLAY, playHandler);
     }
-    final boolean seamless = playHandler.canDoSeamlessPlaySwitch(packet, serverConn);
+    final boolean playStay = playHandler.isPlayStaySwitch(serverConn);
 
     Runnable applyJoin = () -> {
       if (!serverConn.isActive()) {
@@ -159,7 +159,7 @@ public class TransitionSessionHandler implements MinecraftSessionHandler {
       }
 
       serverConn.getPlayer().setConnectedServer(serverConn);
-      if (seamless) {
+      if (playStay) {
         smc.eventLoop().schedule(() -> {
           if (!serverConn.isActive()) {
             return;
@@ -197,7 +197,7 @@ public class TransitionSessionHandler implements MinecraftSessionHandler {
       resultFuture.complete(ConnectionRequestResults.successful(serverConn.getServer()));
     };
 
-    if (seamless) {
+    if (playStay) {
       try {
         applyJoin.run();
       } catch (Throwable exc) {

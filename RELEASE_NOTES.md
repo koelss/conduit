@@ -24,7 +24,8 @@
   removed again after a short delay; air/swim metadata is reset. Seamless joins no longer stall on
   Velocity `ServerConnectedEvent` (that wait dropped movement for about a second). Destination world
   packets follow HUD clear by 300ms, and 1.21.4+ backends are sent `player_loaded` so they accept
-  input immediately.
+  input immediately. Cross-dimension switches (such as Overworld → End limbo) still send Join Game
+  and Respawn, but leftover boss bars are stripped first because the client stayed in Play.
 
 ### Credits
 

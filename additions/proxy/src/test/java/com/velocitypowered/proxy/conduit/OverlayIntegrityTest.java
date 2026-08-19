@@ -48,7 +48,8 @@ class OverlayIntegrityTest {
     assertTrue(source.contains("GameEventPacket.changeGamemode"));
     assertTrue(source.contains("trackedPlayerEffects"));
     assertTrue(source.contains("EntityEventPacket.clearOperator"));
-    assertTrue(source.contains("isSeamlessPlayActive"));
+    assertTrue(source.contains("isPlayStaySwitch"));
+    assertTrue(source.contains("stripPreviousServerHud"));
     assertTrue(source.contains("EntityMetadataPacket.resetBreathAndSwim"));
     assertTrue(source.contains("getConnectionInFlightOrConnectedServer"));
     assertTrue(source.contains("ServerboundPlayerLoadedPacket"));
@@ -78,7 +79,7 @@ class OverlayIntegrityTest {
     String source = Files.readString(Path.of("../overlays/proxy/src/main/java/com/velocitypowered/"
         + "proxy/connection/backend/TransitionSessionHandler.java"));
 
-    assertTrue(source.contains("canDoSeamlessPlaySwitch"));
+    assertTrue(source.contains("isPlayStaySwitch"));
     assertTrue(source.contains("TimeUnit.MILLISECONDS"));
     assertTrue(source.contains("packet.handle(handler)"));
   }

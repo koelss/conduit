@@ -31,6 +31,9 @@ All changes relative to upstream `GemstoneGG/Velocity-CTD @ libdeflate`.
   linger. Seamless joins no longer wait on `ServerConnectedEvent` before unlocking movement;
   destination world packets are released after a short 300ms hold so the switch is not a one-frame
   snap. 1.21.4+ backends receive `player_loaded` immediately so they do not ignore input for a second.
+  When the destination is a **different dimension** (for example Overworld → End limbo), Join Game
+  and Respawn still run, but leftover boss bars and other HUD are stripped first because the client
+  never entered configuration.
 * **Credit:** based on the seamless server switching patch by **ohemilyy**
   (`b5a97c65eea43a1a3d5e21589b67e2888729e1e4`, `feat: seamless server switches`),
   `ohemilyy <ohemilyy@proton.me>`. Source files retain the original `@author Luna` attribution.

@@ -665,7 +665,9 @@ public class ClientPlaySessionHandler implements MinecraftSessionHandler {
    */
   public void handleBackendJoinGame(JoinGamePacket joinGame, VelocityServerConnection destination) {
     final MinecraftConnection serverMc = destination.ensureConnected();
-    final boolean seamless = spawned && canDoSeamlessPlaySwitch(joinGame, destination);
+    final boolean playStay = spawned && isPlayStaySwitch(destination);
+    final boolean seamless = playStay && currentDimension != null
+        && currentDimension == joinGame.getDimension();
 
     if (!spawned) {
       // The player wasn't spawned in yet, so we don't need to do anything special.
@@ -679,6 +681,18 @@ public class ClientPlaySessionHandler implements MinecraftSessionHandler {
     } else if (seamless) {
       this.seamlessPlayActive = true;
       this.doSeamlessPlaySwitch(joinGame);
+    } else if (playStay) {
+      // Client stayed in Play (backend config was absorbed) but the destination is a different
+      // dimension, e.g. Overworld hub → End limbo. Vanilla never ran the config-phase bar clear,
+      // so strip leftover HUD and then send Join Game + Respawn for the new dimension.
+      this.seamlessPlayActive = false;
+      this.stripPreviousServerHud();
+      player.getTabList().clearAll();
+      if (player.getConnection().getType() == ConnectionTypes.LEGACY_FORGE) {
+        this.doSafeClientServerSwitch(joinGame);
+      } else {
+        this.doFastClientServerSwitch(joinGame);
+      }
     } else {
       this.seamlessPlayActive = false;
       // Clear tab list to avoid duplicate entries
@@ -716,7 +730,7 @@ public class ClientPlaySessionHandler implements MinecraftSessionHandler {
       serverBossBars.clear();
     }
 
-    if (seamless && player.getProtocolVersion().noLessThan(ProtocolVersion.MINECRAFT_1_21_4)) {
+    if (playStay && player.getProtocolVersion().noLessThan(ProtocolVersion.MINECRAFT_1_21_4)) {
       serverMc.delayedWrite(ServerboundPlayerLoadedPacket.INSTANCE);
     }
 
@@ -755,9 +769,10 @@ public class ClientPlaySessionHandler implements MinecraftSessionHandler {
   }
 
   /**
-   * Returns whether this Join Game can skip the client configuration/respawn sequence.
+   * Returns whether the client stayed in Play while the backend ran configuration, so leftover
+   * HUD must be stripped even when the destination is a different dimension.
    */
-  public boolean canDoSeamlessPlaySwitch(JoinGamePacket joinGame, VelocityServerConnection destination) {
+  public boolean isPlayStaySwitch(VelocityServerConnection destination) {
     if (!Conduit.get().getConfig().isSeamlessServerSwitches()) {
       return false;
     }
@@ -767,13 +782,30 @@ public class ClientPlaySessionHandler implements MinecraftSessionHandler {
     if (player.getConnection().getType() == ConnectionTypes.LEGACY_FORGE) {
       return false;
     }
-    if (player.getConnectionInFlight() != destination) {
+    return player.getConnectionInFlight() == destination;
+  }
+
+  /**
+   * Returns whether this Join Game can skip the client configuration/respawn sequence.
+   */
+  public boolean canDoSeamlessPlaySwitch(JoinGamePacket joinGame, VelocityServerConnection destination) {
+    if (!isPlayStaySwitch(destination)) {
       return false;
     }
     return currentDimension != null && currentDimension == joinGame.getDimension();
   }
 
   private void doSeamlessPlaySwitch(JoinGamePacket joinGame) {
+    stripPreviousServerHud();
+    player.getConnection().delayedWrite(GameEventPacket.changeGamemode(joinGame.getGamemode()));
+    player.getConnection().delayedWrite(
+        new GameEventPacket(GameEventPacket.EVENT_LIMITED_CRAFTING,
+            joinGame.getDoLimitedCrafting() ? 1.0f : 0.0f));
+    player.getConnection().delayedWrite(
+        new GameEventPacket(GameEventPacket.EVENT_END_RAINING, 0.0f));
+  }
+
+  private void stripPreviousServerHud() {
     for (TabListEntry entry : player.getTabList().getEntries()) {
       final UUID uuid = entry.getProfile().getId();
       if (!uuid.equals(player.getUniqueId())) {
@@ -807,12 +839,6 @@ public class ClientPlaySessionHandler implements MinecraftSessionHandler {
       }
       trackedPlayerEffects.clear();
     }
-    player.getConnection().delayedWrite(GameEventPacket.changeGamemode(joinGame.getGamemode()));
-    player.getConnection().delayedWrite(
-        new GameEventPacket(GameEventPacket.EVENT_LIMITED_CRAFTING,
-            joinGame.getDoLimitedCrafting() ? 1.0f : 0.0f));
-    player.getConnection().delayedWrite(
-        new GameEventPacket(GameEventPacket.EVENT_END_RAINING, 0.0f));
     if (player.getProtocolVersion().noLessThan(ProtocolVersion.MINECRAFT_1_8)) {
       player.getConnection().delayedWrite(HeaderAndFooterPacket.reset(player.getProtocolVersion()));
       player.clearPlayerListHeaderAndFooterSilent();
