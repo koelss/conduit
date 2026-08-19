@@ -55,6 +55,8 @@ public final class ConduitConfigDiff {
         false);
     diff.add("routing.mod-compatibility", before.getModCompatibilityRules(),
         after.getModCompatibilityRules(), false);
+    diff.add("advanced.seamless-server-switches", before.isSeamlessServerSwitches(),
+        after.isSeamlessServerSwitches(), true);
     return diff;
   }
 

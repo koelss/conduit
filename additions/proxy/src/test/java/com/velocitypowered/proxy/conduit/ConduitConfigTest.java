@@ -88,4 +88,24 @@ class ConduitConfigTest {
 
     assertFalse(config.isLuckPermsBundleEnabled());
   }
+
+  @Test
+  void seamlessServerSwitchesDisabledByDefault() throws Exception {
+    ConduitConfig config = ConduitConfig.load(tempDir);
+
+    assertFalse(config.isSeamlessServerSwitches());
+  }
+
+  @Test
+  void loadsSeamlessServerSwitchesEnabled() throws Exception {
+    Files.writeString(tempDir.resolve("conduit.toml"),
+        """
+        [advanced]
+        seamless-server-switches = true
+        """);
+
+    ConduitConfig config = ConduitConfig.load(tempDir);
+
+    assertTrue(config.isSeamlessServerSwitches());
+  }
 }

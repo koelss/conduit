@@ -529,6 +529,8 @@ public final class Conduit {
     logger.info("[Conduit]   command-forwarding      = {} (channel {}, require-perm {})",
         config.isCommandForwardingEnabled(), config.getCommandForwardingChannel(),
         config.isCommandForwardingRequirePermission());
+    logger.info("[Conduit]   seamless-server-switches = {} (experimental; 1.20.2+)",
+        config.isSeamlessServerSwitches());
   }
 
   private static String loadVersion() {

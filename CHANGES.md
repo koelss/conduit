@@ -4,6 +4,25 @@ All changes relative to upstream `GemstoneGG/Velocity-CTD @ libdeflate`.
 
 ---
 
+## 1.7.0 — Experimental seamless server switches
+
+### Added — seamless server switches (`[advanced] seamless-server-switches`)
+
+* Opt-in experimental path for **Minecraft 1.20.2+** clients moving between **homogeneous** backends
+  (compatible registries/datapacks, same protocol/game environment). Default **false**.
+* When enabled and the destination reports the **same dimension**, the proxy absorbs the backend
+  configuration phase (`SeamlessConfigSessionHandler`) while the client stays in Play: no Join Game /
+  Respawn, old entities and tab-list entries are cleared, and the new backend streams into the
+  existing world. Other cases fall back to the existing fast/safe switch.
+* Known Packs replies use the **intersection** of packs the client reported at login and packs the
+  destination requested. Add Entity velocity for 1.21.9+ is carried as raw bytes so the 1.21.9
+  encoding is not re-interpreted as the old short vector.
+* **Credit:** based on the seamless server switching patch by **ohemilyy**
+  (`b5a97c65eea43a1a3d5e21589b67e2888729e1e4`, `feat: seamless server switches`),
+  `ohemilyy <ohemilyy@proton.me>`. Source files retain the original `@author Luna` attribution.
+
+---
+
 ## 1.6.3 — LuckPerms permission suggestions & bundled jar refresh
 
 ### Fixed — maintenance bypass (and other conduit.* nodes) now autocomplete in LuckPerms

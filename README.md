@@ -37,6 +37,7 @@ backends.
 | **Structured diagnostics** | Optional lock-free counters and structured log output for profiling; zero overhead when disabled. |
 | **Bundled spark profiler** | Ships the official `lucko/spark` Velocity plugin and installs it as `/sparkv` / `/sparkvelocity`. Skips if an operator-managed spark jar is present, and can be disabled via `conduit.toml → [spark] → bundle-enabled`. |
 | **Native LuckPerms** | Ships the official LuckPerms Velocity plugin and installs it on first run, so permissions, groups, and prefixes work out of the box. Skips if an operator-managed LuckPerms jar is present, and can be disabled via `conduit.toml → [luckperms] → bundle-enabled`. CTD's LuckPerms permission resolver then activates automatically. |
+| **Experimental seamless switches** | Optional 1.20.2+ same-dimension server switches that skip the client configuration screen. Disabled by default (`[advanced] seamless-server-switches`). Based on the seamless server switching patch by ohemilyy. |
 | **Update checker** | Asynchronously checks GitHub Releases for a newer Conduit version, caches the result, compares semantic versions, and tells `conduit.update.notify` staff how many releases they are behind on join. Modular provider design; configurable via `conduit.toml → [update]`. |
 | **Command forwarding** | Optional backend→proxy command execution over plugin messaging, wire-compatible with the VelocityCommandForward plugin. A backend's `/proxyexec <cmd>` runs on the proxy as console or the forwarding player. Off by default; enable via `conduit.toml → [forwarding] → command-forwarding`. Replaces the proxy-side VelocityCommandForward plugin. |
 | **Self-updating config** | `conduit.toml` is topped up on every start: options added in newer Conduit versions appear automatically with documented defaults, existing values and comments are preserved, and no manual delete/regenerate is ever needed. |
@@ -189,6 +190,12 @@ bundle-enabled                  = true      # extract bundled spark plugin; set 
 
 [luckperms]
 bundle-enabled                  = true      # extract bundled LuckPerms plugin; set false to suppress
+
+[advanced]
+# Experimental. Homogeneous backends only (same protocol/game environment / compatible registries).
+# Based on the seamless server switching patch by ohemilyy.
+# Patch: b5a97c65eea43a1a3d5e21589b67e2888729e1e4
+seamless-server-switches        = false
 ```
 
 ### Operator commands

@@ -34,6 +34,13 @@ public class KnownPacksPacket implements MinecraftPacket {
 
   private List<KnownPack> packs;
 
+  public KnownPacksPacket() {
+  }
+
+  public KnownPacksPacket(List<KnownPack> packs) {
+    this.packs = packs;
+  }
+
   public static void setMaxKnownPacks(int limit) {
     if (limit <= 0) {
       throw new IllegalArgumentException("max-known-packs must be positive, got: " + limit);
