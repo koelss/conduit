@@ -20,9 +20,12 @@ All changes relative to upstream `GemstoneGG/Velocity-CTD @ libdeflate`.
 * Seamless switches now **remove leftover scoreboard objectives and teams** from the client before
   the destination backend streams in, so plugins that recreate a `sidebar` objective no longer
   disconnect 1.20.2+ clients.
-* Seamless switches now drop leftover **boss bars** (TAB RAM/TPS bars), apply the destination
-  **gamemode** via a game-event packet, and clear/rewrite **status effects** onto the client's
-  existing player entity so hub Adventure mode and hub potion effects do not stick.
+* Seamless switches now drop leftover **boss bars** (TAB RAM/TPS bars, including bars that only
+  receive later UPDATE packets), apply the destination **gamemode** via a game-event packet, reset
+  the client's **operator permission level** (so F3+F4 is not left enabled from a hub OP), clear
+  leftover **status effects**, and **rewrite the local player entity ID** on damage, hurt animation,
+  entity sounds, velocity, and metadata so destination hurt sounds play. The vanilla
+  "waiting for chunks" / world-generation overlay is not forwarded after a seamless switch.
 * **Credit:** based on the seamless server switching patch by **ohemilyy**
   (`b5a97c65eea43a1a3d5e21589b67e2888729e1e4`, `feat: seamless server switches`),
   `ohemilyy <ohemilyy@proton.me>`. Source files retain the original `@author Luna` attribution.

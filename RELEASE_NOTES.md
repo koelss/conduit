@@ -16,8 +16,11 @@
   objectives and teams and removes them from the client before the new server's packets arrive.
 
 - **Seamless switches now apply destination player state.** Hub leftover **boss bars** (TAB RAM/TPS
-  bars), **gamemode** (e.g. staying in Adventure), and **status effects** are cleared or rewritten
-  from the destination Join Game / effect packets so the client uses the new backend's data.
+  bars, including bars that only receive later UPDATE packets), **gamemode**, **operator permission
+  level** (F3+F4), and **status effects** are cleared or rewritten from the destination. Packets that
+  target the local player (damage, hurt animation, entity sounds, knockback, metadata) are rewritten
+  to the client's original entity ID so hurt sounds play. The vanilla world-generation overlay is
+  not forwarded after a seamless switch.
 
 ### Credits
 

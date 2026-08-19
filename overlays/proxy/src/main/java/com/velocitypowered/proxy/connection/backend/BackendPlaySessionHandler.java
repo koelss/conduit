@@ -49,9 +49,13 @@ import com.velocitypowered.proxy.protocol.packet.BossBarPacket;
 import com.velocitypowered.proxy.protocol.packet.BundleDelimiterPacket;
 import com.velocitypowered.proxy.protocol.packet.ClientSettingsPacket;
 import com.velocitypowered.proxy.protocol.packet.ClientboundCookieRequestPacket;
+import com.velocitypowered.proxy.protocol.packet.ClientboundSoundEntityPacket;
 import com.velocitypowered.proxy.protocol.packet.ClientboundStoreCookiePacket;
 import com.velocitypowered.proxy.protocol.packet.DisconnectPacket;
 import com.velocitypowered.proxy.protocol.packet.EntityEffectPacket;
+import com.velocitypowered.proxy.protocol.packet.EntityEventPacket;
+import com.velocitypowered.proxy.protocol.packet.EntityIdPayloadPacket;
+import com.velocitypowered.proxy.protocol.packet.GameEventPacket;
 import com.velocitypowered.proxy.protocol.packet.KeepAlivePacket;
 import com.velocitypowered.proxy.protocol.packet.LegacyPlayerListItemPacket;
 import com.velocitypowered.proxy.protocol.packet.PluginMessagePacket;
@@ -226,6 +230,33 @@ public class BackendPlaySessionHandler implements MinecraftSessionHandler {
   }
 
   @Override
+  public boolean handle(EntityEventPacket packet) {
+    rewritePlayerEntityId(packet::getEntityId, packet::setEntityId);
+    return false;
+  }
+
+  @Override
+  public boolean handle(EntityIdPayloadPacket packet) {
+    rewritePlayerEntityId(packet::getEntityId, packet::setEntityId);
+    return false;
+  }
+
+  @Override
+  public boolean handle(ClientboundSoundEntityPacket packet) {
+    rewritePlayerEntityId(packet::getEmitterEntityId, packet::setEmitterEntityId);
+    return false;
+  }
+
+  @Override
+  public boolean handle(GameEventPacket packet) {
+    if (packet.getEvent() == GameEventPacket.EVENT_START_WAITING_FOR_CHUNKS
+        && playerSessionHandler.isSeamlessPlayActive()) {
+      return true;
+    }
+    return false;
+  }
+
+  @Override
   public boolean handle(KeepAlivePacket packet) {
     // Backend advanced to PLAY early while the client is still held in config: echo the keepalive
     // back to keep the backend alive instead of forwarding it to the still-configuring client.
@@ -253,10 +284,10 @@ public class BackendPlaySessionHandler implements MinecraftSessionHandler {
 
   @Override
   public boolean handle(BossBarPacket packet) {
-    if (packet.getAction() == BossBarPacket.ADD) {
-      playerSessionHandler.getServerBossBars().add(packet.getUuid());
-    } else if (packet.getAction() == BossBarPacket.REMOVE) {
+    if (packet.getAction() == BossBarPacket.REMOVE) {
       playerSessionHandler.getServerBossBars().remove(packet.getUuid());
+    } else {
+      playerSessionHandler.getServerBossBars().add(packet.getUuid());
     }
 
     return false; // Forward

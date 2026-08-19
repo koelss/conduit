@@ -24,48 +24,55 @@ import com.velocitypowered.proxy.protocol.ProtocolUtils;
 import io.netty.buffer.ByteBuf;
 
 /**
- * Clientbound game-event packet (weather, gamemode, limited crafting, and similar).
+ * Clientbound entity-event / entity-status packet (Int entity ID + unsigned status byte).
+ *
+ * <p>Status values 24–28 set the client's operator permission level (0–4), which controls
+ * the F3+F4 gamemode switcher.
+ *
+ * @author Luna
+ * @date 19/08/2026
  */
-public class GameEventPacket implements MinecraftPacket {
+public class EntityEventPacket implements MinecraftPacket {
 
-  public static final int EVENT_END_RAINING = 2;
-  public static final int EVENT_CHANGE_GAMEMODE = 3;
-  public static final int EVENT_LIMITED_CRAFTING = 12;
-  public static final int EVENT_START_WAITING_FOR_CHUNKS = 13;
+  public static final byte STATUS_OP_PERMISSION_LEVEL_0 = 24;
 
-  private int event;
-  private float value;
+  private int entityId;
+  private byte status;
 
-  public GameEventPacket() {
+  public EntityEventPacket() {
   }
 
-  public GameEventPacket(int event, float value) {
-    this.event = event;
-    this.value = value;
+  public EntityEventPacket(int entityId, byte status) {
+    this.entityId = entityId;
+    this.status = status;
   }
 
-  public int getEvent() {
-    return event;
+  public int getEntityId() {
+    return entityId;
   }
 
-  public float getValue() {
-    return value;
+  public void setEntityId(int entityId) {
+    this.entityId = entityId;
   }
 
-  public static GameEventPacket changeGamemode(int gamemode) {
-    return new GameEventPacket(EVENT_CHANGE_GAMEMODE, gamemode);
+  public byte getStatus() {
+    return status;
+  }
+
+  public static EntityEventPacket clearOperator(int entityId) {
+    return new EntityEventPacket(entityId, STATUS_OP_PERMISSION_LEVEL_0);
   }
 
   @Override
   public void decode(ByteBuf buf, ProtocolUtils.Direction direction, ProtocolVersion version) {
-    this.event = buf.readUnsignedByte();
-    this.value = buf.readFloat();
+    this.entityId = buf.readInt();
+    this.status = buf.readByte();
   }
 
   @Override
   public void encode(ByteBuf buf, ProtocolUtils.Direction direction, ProtocolVersion version) {
-    buf.writeByte(event);
-    buf.writeFloat(value);
+    buf.writeInt(entityId);
+    buf.writeByte(status);
   }
 
   @Override
