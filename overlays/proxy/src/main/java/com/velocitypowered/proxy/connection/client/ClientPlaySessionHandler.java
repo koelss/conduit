@@ -34,6 +34,7 @@ import com.velocitypowered.api.proxy.messages.ChannelIdentifier;
 import com.velocitypowered.api.proxy.player.TabListEntry;
 import com.velocitypowered.proxy.VelocityServer;
 import com.velocitypowered.proxy.conduit.Conduit;
+import com.velocitypowered.proxy.conduit.ConduitConfig;
 import com.velocitypowered.proxy.conduit.network.TabCompleteCache;
 import com.velocitypowered.proxy.connection.ConnectionTypes;
 import com.velocitypowered.proxy.connection.MinecraftConnection;
@@ -105,6 +106,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import net.kyori.adventure.key.Key;
+import net.kyori.adventure.sound.Sound;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.ComponentLike;
 import net.kyori.adventure.text.format.NamedTextColor;
@@ -766,6 +768,53 @@ public class ClientPlaySessionHandler implements MinecraftSessionHandler {
     player.getConnection().flush();
     serverMc.flush();
     destination.completeJoin();
+
+    // Conduit: when the client stayed in the PLAY state (a seamless switch), soften the otherwise
+    // instantaneous transition and prevent the "stuck until reconnect" desync by briefly holding
+    // the player's own input while the destination backend streams them in, and optionally play a
+    // teleport cue.
+    if (playStay) {
+      applySeamlessSwitchEffects();
+    }
+  }
+
+  /**
+   * Applies the configurable settle delay and teleport sound to a seamless server switch.
+   *
+   * <p>The settle delay pauses reading of the client's inbound packets for a short window right
+   * after the switch. Movement the player makes before the destination server has finished loading
+   * them in is buffered instead of being processed against a not-yet-ready world, which avoids the
+   * player becoming "stuck" and having to reconnect. It also stops the switch from feeling
+   * jarringly instantaneous.
+   */
+  private void applySeamlessSwitchEffects() {
+    final ConduitConfig config = Conduit.get().getConfig();
+
+    if (config.isSeamlessSwitchSoundEnabled()) {
+      try {
+        final Sound sound = Sound.sound(
+            Key.key(config.getSeamlessSwitchSound()),
+            Sound.Source.PLAYER,
+            config.getSeamlessSwitchSoundVolume(),
+            config.getSeamlessSwitchSoundPitch());
+        player.playSound(sound);
+      } catch (RuntimeException e) {
+        // An invalid sound key must never break the actual server switch.
+        LOGGER.warn("Invalid seamless-switch-sound '{}', skipping switch sound: {}",
+            config.getSeamlessSwitchSound(), e.getMessage());
+      }
+    }
+
+    final int settleMs = config.getSeamlessSwitchSettleMs();
+    if (settleMs > 0) {
+      final MinecraftConnection clientConn = player.getConnection();
+      clientConn.setAutoReading(false);
+      clientConn.eventLoop().schedule(() -> {
+        if (!clientConn.isClosed()) {
+          clientConn.setAutoReading(true);
+        }
+      }, settleMs, TimeUnit.MILLISECONDS);
+    }
   }
 
   /**

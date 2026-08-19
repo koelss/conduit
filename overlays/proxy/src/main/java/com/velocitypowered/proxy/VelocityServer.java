@@ -154,7 +154,7 @@ public class VelocityServer implements ProxyServer, ForwardingAudience {
   // compatibility with upstream call sites, but it now points at the Conduit project so the
   // GitHub link shown in `/velocity info` and on the virtual plugin identifies Conduit.
   public static final String VELOCITY_URL = "https://github.com/tame-gg/conduit";
-  public static final String DISCORD_URL = "https://discord.gg/beer";
+  public static final String DISCORD_URL = "https://discord.gg/jQuSsQ6jkH";
 
   private static final Logger LOGGER = LogManager.getLogger(VelocityServer.class);
 
@@ -344,7 +344,7 @@ public class VelocityServer implements ProxyServer, ForwardingAudience {
     String implVersion = Optional.ofNullable(pkg)
         .map(Package::getImplementationVersion)
         .orElse("<unknown>");
-    String implVendor = "Conduit Contributors";
+    String implVendor = "tame.gg";
 
     return new ProxyVersion(implName, implVendor, implVersion);
   }

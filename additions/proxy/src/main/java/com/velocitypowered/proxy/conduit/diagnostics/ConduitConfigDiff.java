@@ -57,6 +57,16 @@ public final class ConduitConfigDiff {
         after.getModCompatibilityRules(), false);
     diff.add("advanced.seamless-server-switches", before.isSeamlessServerSwitches(),
         after.isSeamlessServerSwitches(), true);
+    diff.add("advanced.seamless-switch-settle-ms", before.getSeamlessSwitchSettleMs(),
+        after.getSeamlessSwitchSettleMs(), true);
+    diff.add("advanced.seamless-switch-sound-enabled", before.isSeamlessSwitchSoundEnabled(),
+        after.isSeamlessSwitchSoundEnabled(), true);
+    diff.add("advanced.seamless-switch-sound", before.getSeamlessSwitchSound(),
+        after.getSeamlessSwitchSound(), true);
+    diff.add("advanced.seamless-switch-sound-volume", before.getSeamlessSwitchSoundVolume(),
+        after.getSeamlessSwitchSoundVolume(), true);
+    diff.add("advanced.seamless-switch-sound-pitch", before.getSeamlessSwitchSoundPitch(),
+        after.getSeamlessSwitchSoundPitch(), true);
     return diff;
   }
 

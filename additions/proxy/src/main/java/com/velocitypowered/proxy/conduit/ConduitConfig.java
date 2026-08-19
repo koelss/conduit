@@ -136,6 +136,11 @@ public final class ConduitConfig {
 
   // ── Advanced section ──────────────────────────────────────────────────────
   private final boolean seamlessServerSwitches;
+  private final int seamlessSwitchSettleMs;
+  private final boolean seamlessSwitchSoundEnabled;
+  private final String seamlessSwitchSound;
+  private final float seamlessSwitchSoundVolume;
+  private final float seamlessSwitchSoundPitch;
 
   private ConduitConfig(Builder b) {
     validate(b);
@@ -216,6 +221,11 @@ public final class ConduitConfig {
     this.luckPermsBundleEnabled = b.luckPermsBundleEnabled;
 
     this.seamlessServerSwitches = b.seamlessServerSwitches;
+    this.seamlessSwitchSettleMs = b.seamlessSwitchSettleMs;
+    this.seamlessSwitchSoundEnabled = b.seamlessSwitchSoundEnabled;
+    this.seamlessSwitchSound = b.seamlessSwitchSound;
+    this.seamlessSwitchSoundVolume = b.seamlessSwitchSoundVolume;
+    this.seamlessSwitchSoundPitch = b.seamlessSwitchSoundPitch;
   }
 
   /**
@@ -390,6 +400,14 @@ public final class ConduitConfig {
     CommentedConfig advanced = toml.get("advanced");
     if (advanced != null) {
       b.seamlessServerSwitches = advanced.getOrElse("seamless-server-switches", false);
+      b.seamlessSwitchSettleMs = advanced.getIntOrElse("seamless-switch-settle-ms", 250);
+      b.seamlessSwitchSoundEnabled = advanced.getOrElse("seamless-switch-sound-enabled", true);
+      b.seamlessSwitchSound =
+          advanced.getOrElse("seamless-switch-sound", "minecraft:entity.enderman.teleport");
+      Object volObj = advanced.getOrElse("seamless-switch-sound-volume", 1.0);
+      b.seamlessSwitchSoundVolume = volObj instanceof Number n ? n.floatValue() : 1.0f;
+      Object pitchObj = advanced.getOrElse("seamless-switch-sound-pitch", 1.0);
+      b.seamlessSwitchSoundPitch = pitchObj instanceof Number n ? n.floatValue() : 1.0f;
     }
 
     CommentedConfig diag = toml.get("diagnostics");
@@ -434,6 +452,11 @@ public final class ConduitConfig {
     requirePositive("packet-queue-max-depth", b.packetQueueMaxDepth);
     requirePositive("connection-throttle-max-per-second", b.connectionThrottleMaxPerSecond);
     requireNonNegative("slow-connection-threshold-ms", b.slowConnectionThresholdMs);
+    requireNonNegative("seamless-switch-settle-ms", b.seamlessSwitchSettleMs);
+    if (b.seamlessSwitchSettleMs > 5000) {
+      throw new IllegalArgumentException("conduit.toml: seamless-switch-settle-ms ("
+          + b.seamlessSwitchSettleMs + ") must be <= 5000");
+    }
     requirePositive("health-check-interval-ms", b.healthCheckIntervalMs);
     requirePositive("motd-cache-ttl-ms", b.motdCacheTtlMs);
     requirePositive("graceful-shutdown-timeout-ms", b.gracefulShutdownTimeoutMs);
@@ -864,6 +887,42 @@ public final class ConduitConfig {
     return seamlessServerSwitches;
   }
 
+  /**
+   * Returns the settle delay (in milliseconds) applied to a seamless server switch.
+   *
+   * <p>During this window the client connection is held quiet after the switch packets are sent, so
+   * the destination backend has a moment to stream in the world and player position before the
+   * player's own input is processed. This both softens the otherwise instant switch and prevents
+   * the "stuck until reconnect" desync that happens when a player moves before the new server has
+   * finished loading them in. A value of {@code 0} disables the delay. Default {@code 250}.
+   */
+  public int getSeamlessSwitchSettleMs() {
+    return seamlessSwitchSettleMs;
+  }
+
+  /** Returns whether a teleport sound is played to the player on a seamless server switch. */
+  public boolean isSeamlessSwitchSoundEnabled() {
+    return seamlessSwitchSoundEnabled;
+  }
+
+  /**
+   * Returns the sound key played on a seamless server switch (default
+   * {@code minecraft:entity.enderman.teleport}, the ender pearl teleport sound).
+   */
+  public String getSeamlessSwitchSound() {
+    return seamlessSwitchSound;
+  }
+
+  /** Returns the volume of the seamless switch sound. Default {@code 1.0}. */
+  public float getSeamlessSwitchSoundVolume() {
+    return seamlessSwitchSoundVolume;
+  }
+
+  /** Returns the pitch of the seamless switch sound. Default {@code 1.0}. */
+  public float getSeamlessSwitchSoundPitch() {
+    return seamlessSwitchSoundPitch;
+  }
+
   // ── Builder ───────────────────────────────────────────────────────────────
 
   /** Mutable builder used internally by {@link #fromToml} to construct a {@link ConduitConfig}. */
@@ -947,6 +1006,11 @@ public final class ConduitConfig {
     boolean luckPermsBundleEnabled = true;
 
     boolean seamlessServerSwitches = false;
+    int seamlessSwitchSettleMs = 250;
+    boolean seamlessSwitchSoundEnabled = true;
+    String seamlessSwitchSound = "minecraft:entity.enderman.teleport";
+    float seamlessSwitchSoundVolume = 1.0f;
+    float seamlessSwitchSoundPitch = 1.0f;
 
     /**
      * Default channel blocklist for {@code ChannelGuard}: well-known World-Downloader and X-Ray

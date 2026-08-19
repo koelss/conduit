@@ -108,4 +108,36 @@ class ConduitConfigTest {
 
     assertTrue(config.isSeamlessServerSwitches());
   }
+
+  @Test
+  void seamlessSwitchDefaults() throws Exception {
+    ConduitConfig config = ConduitConfig.load(tempDir);
+
+    assertEquals(250, config.getSeamlessSwitchSettleMs());
+    assertTrue(config.isSeamlessSwitchSoundEnabled());
+    assertEquals("minecraft:entity.enderman.teleport", config.getSeamlessSwitchSound());
+    assertEquals(1.0f, config.getSeamlessSwitchSoundVolume());
+    assertEquals(1.0f, config.getSeamlessSwitchSoundPitch());
+  }
+
+  @Test
+  void loadsSeamlessSwitchOverrides() throws Exception {
+    Files.writeString(tempDir.resolve("conduit.toml"),
+        """
+        [advanced]
+        seamless-switch-settle-ms = 500
+        seamless-switch-sound-enabled = false
+        seamless-switch-sound = "minecraft:block.beacon.activate"
+        seamless-switch-sound-volume = 0.5
+        seamless-switch-sound-pitch = 1.5
+        """);
+
+    ConduitConfig config = ConduitConfig.load(tempDir);
+
+    assertEquals(500, config.getSeamlessSwitchSettleMs());
+    assertFalse(config.isSeamlessSwitchSoundEnabled());
+    assertEquals("minecraft:block.beacon.activate", config.getSeamlessSwitchSound());
+    assertEquals(0.5f, config.getSeamlessSwitchSoundVolume());
+    assertEquals(1.5f, config.getSeamlessSwitchSoundPitch());
+  }
 }
