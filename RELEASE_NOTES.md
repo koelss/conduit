@@ -8,6 +8,13 @@
   the world loaded. Cross-dimension switches, pre-1.20.2 clients, and Legacy Forge still use the
   existing switch path.
 
+## Fixed
+
+- **Seamless switches now clear leftover scoreboards.** A destination that recreates a common
+  objective such as `sidebar` no longer crashes 1.20.2+ clients with
+  `An objective with the name 'sidebar' already exists!`. The proxy tracks backend scoreboard
+  objectives and teams and removes them from the client before the new server's packets arrive.
+
 ### Credits
 
 - **Seamless server switching:** Based on the seamless server switching patch by [@ohemilyy](https://github.com/ohemilyy), originally provided in `b5a97c65eea43a1a3d5e21589b67e2888729e1e4` (`feat: seamless server switches`).

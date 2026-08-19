@@ -85,6 +85,8 @@ import com.velocitypowered.proxy.protocol.packet.RemoveResourcePackPacket;
 import com.velocitypowered.proxy.protocol.packet.ResourcePackRequestPacket;
 import com.velocitypowered.proxy.protocol.packet.ResourcePackResponsePacket;
 import com.velocitypowered.proxy.protocol.packet.RespawnPacket;
+import com.velocitypowered.proxy.protocol.packet.ScoreboardObjectivePacket;
+import com.velocitypowered.proxy.protocol.packet.ScoreboardTeamPacket;
 import com.velocitypowered.proxy.protocol.packet.ServerDataPacket;
 import com.velocitypowered.proxy.protocol.packet.ServerLoginPacket;
 import com.velocitypowered.proxy.protocol.packet.ServerLoginSuccessPacket;
@@ -610,6 +612,24 @@ public enum StateRegistry {
           map(0x46, MINECRAFT_1_21_5, false),
           map(0x4B, MINECRAFT_1_21_9, false),
           map(0x4D, MINECRAFT_26_1, false));
+      clientbound.register(
+          ScoreboardObjectivePacket.class, ScoreboardObjectivePacket::new,
+          map(0x5A, MINECRAFT_1_20_2, false),
+          map(0x5C, MINECRAFT_1_20_3, false),
+          map(0x5E, MINECRAFT_1_20_5, false),
+          map(0x64, MINECRAFT_1_21_2, false),
+          map(0x63, MINECRAFT_1_21_5, false),
+          map(0x68, MINECRAFT_1_21_9, false),
+          map(0x6A, MINECRAFT_26_1, false));
+      clientbound.register(
+          ScoreboardTeamPacket.class, ScoreboardTeamPacket::new,
+          map(0x5C, MINECRAFT_1_20_2, false),
+          map(0x5E, MINECRAFT_1_20_3, false),
+          map(0x60, MINECRAFT_1_20_5, false),
+          map(0x67, MINECRAFT_1_21_2, false),
+          map(0x66, MINECRAFT_1_21_5, false),
+          map(0x6B, MINECRAFT_1_21_9, false),
+          map(0x6D, MINECRAFT_26_1, false));
       clientbound.register(
           RemoveResourcePackPacket.class,
           RemoveResourcePackPacket::new,

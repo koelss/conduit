@@ -49,6 +49,8 @@ import com.velocitypowered.proxy.protocol.packet.RemoveResourcePackPacket;
 import com.velocitypowered.proxy.protocol.packet.ResourcePackRequestPacket;
 import com.velocitypowered.proxy.protocol.packet.ResourcePackResponsePacket;
 import com.velocitypowered.proxy.protocol.packet.RespawnPacket;
+import com.velocitypowered.proxy.protocol.packet.ScoreboardObjectivePacket;
+import com.velocitypowered.proxy.protocol.packet.ScoreboardTeamPacket;
 import com.velocitypowered.proxy.protocol.packet.ServerDataPacket;
 import com.velocitypowered.proxy.protocol.packet.ServerLoginPacket;
 import com.velocitypowered.proxy.protocol.packet.ServerLoginSuccessPacket;
@@ -303,6 +305,14 @@ public interface MinecraftSessionHandler {
   }
 
   default boolean handle(SpawnEntityPacket packet) {
+    return false;
+  }
+
+  default boolean handle(ScoreboardObjectivePacket packet) {
+    return false;
+  }
+
+  default boolean handle(ScoreboardTeamPacket packet) {
     return false;
   }
 

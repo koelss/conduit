@@ -60,6 +60,8 @@ import com.velocitypowered.proxy.protocol.packet.RemoveResourcePackPacket;
 import com.velocitypowered.proxy.protocol.packet.ResourcePackRequestPacket;
 import com.velocitypowered.proxy.protocol.packet.ResourcePackResponsePacket;
 import com.velocitypowered.proxy.protocol.packet.RespawnPacket;
+import com.velocitypowered.proxy.protocol.packet.ScoreboardObjectivePacket;
+import com.velocitypowered.proxy.protocol.packet.ScoreboardTeamPacket;
 import com.velocitypowered.proxy.protocol.packet.ServerDataPacket;
 import com.velocitypowered.proxy.protocol.packet.SpawnEntityPacket;
 import com.velocitypowered.proxy.protocol.packet.TabCompleteResponsePacket;
@@ -180,6 +182,26 @@ public class BackendPlaySessionHandler implements MinecraftSessionHandler {
   @Override
   public boolean handle(RespawnPacket packet) {
     playerSessionHandler.setCurrentDimension(packet.getDimension());
+    return false;
+  }
+
+  @Override
+  public boolean handle(ScoreboardObjectivePacket packet) {
+    if (packet.getMethod() == ScoreboardObjectivePacket.METHOD_REMOVE) {
+      playerSessionHandler.getTrackedScoreboardObjectives().remove(packet.getObjectiveName());
+    } else {
+      playerSessionHandler.getTrackedScoreboardObjectives().add(packet.getObjectiveName());
+    }
+    return false;
+  }
+
+  @Override
+  public boolean handle(ScoreboardTeamPacket packet) {
+    if (packet.getMethod() == ScoreboardTeamPacket.METHOD_REMOVE) {
+      playerSessionHandler.getTrackedScoreboardTeams().remove(packet.getTeamName());
+    } else {
+      playerSessionHandler.getTrackedScoreboardTeams().add(packet.getTeamName());
+    }
     return false;
   }
 

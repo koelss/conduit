@@ -54,6 +54,8 @@ import com.velocitypowered.proxy.protocol.packet.PluginMessagePacket;
 import com.velocitypowered.proxy.protocol.packet.RemoveEntitiesPacket;
 import com.velocitypowered.proxy.protocol.packet.ResourcePackResponsePacket;
 import com.velocitypowered.proxy.protocol.packet.RespawnPacket;
+import com.velocitypowered.proxy.protocol.packet.ScoreboardObjectivePacket;
+import com.velocitypowered.proxy.protocol.packet.ScoreboardTeamPacket;
 import com.velocitypowered.proxy.protocol.packet.ServerboundCookieResponsePacket;
 import com.velocitypowered.proxy.protocol.packet.TabCompleteRequestPacket;
 import com.velocitypowered.proxy.protocol.packet.TabCompleteResponsePacket;
@@ -151,6 +153,8 @@ public class ClientPlaySessionHandler implements MinecraftSessionHandler {
   private int failedTabCompleteAttempts;
 
   private final Set<Integer> trackedEntityIds = ConcurrentHashMap.newKeySet();
+  private final Set<String> trackedScoreboardObjectives = ConcurrentHashMap.newKeySet();
+  private final Set<String> trackedScoreboardTeams = ConcurrentHashMap.newKeySet();
   private @Nullable Integer currentDimension;
 
   /**
@@ -678,6 +682,8 @@ public class ClientPlaySessionHandler implements MinecraftSessionHandler {
 
     if (!seamless) {
       trackedEntityIds.clear();
+      trackedScoreboardObjectives.clear();
+      trackedScoreboardTeams.clear();
     }
     this.currentDimension = joinGame.getDimension();
 
@@ -761,6 +767,18 @@ public class ClientPlaySessionHandler implements MinecraftSessionHandler {
       player.getConnection().delayedWrite(new RemoveEntitiesPacket(new ArrayList<>(trackedEntityIds)));
       trackedEntityIds.clear();
     }
+    if (!trackedScoreboardTeams.isEmpty()) {
+      for (String team : trackedScoreboardTeams) {
+        player.getConnection().delayedWrite(ScoreboardTeamPacket.remove(team));
+      }
+      trackedScoreboardTeams.clear();
+    }
+    if (!trackedScoreboardObjectives.isEmpty()) {
+      for (String objective : trackedScoreboardObjectives) {
+        player.getConnection().delayedWrite(ScoreboardObjectivePacket.remove(objective));
+      }
+      trackedScoreboardObjectives.clear();
+    }
   }
 
   private void doFastClientServerSwitch(JoinGamePacket joinGame) {
@@ -809,6 +827,14 @@ public class ClientPlaySessionHandler implements MinecraftSessionHandler {
 
   public Set<Integer> getTrackedEntityIds() {
     return trackedEntityIds;
+  }
+
+  public Set<String> getTrackedScoreboardObjectives() {
+    return trackedScoreboardObjectives;
+  }
+
+  public Set<String> getTrackedScoreboardTeams() {
+    return trackedScoreboardTeams;
   }
 
   public void setCurrentDimension(int dimension) {

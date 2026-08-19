@@ -17,6 +17,9 @@ All changes relative to upstream `GemstoneGG/Velocity-CTD @ libdeflate`.
 * Known Packs replies use the **intersection** of packs the client reported at login and packs the
   destination requested. Add Entity velocity for 1.21.9+ is carried as raw bytes so the 1.21.9
   encoding is not re-interpreted as the old short vector.
+* Seamless switches now **remove leftover scoreboard objectives and teams** from the client before
+  the destination backend streams in, so plugins that recreate a `sidebar` objective no longer
+  disconnect 1.20.2+ clients.
 * **Credit:** based on the seamless server switching patch by **ohemilyy**
   (`b5a97c65eea43a1a3d5e21589b67e2888729e1e4`, `feat: seamless server switches`),
   `ohemilyy <ohemilyy@proton.me>`. Source files retain the original `@author Luna` attribution.

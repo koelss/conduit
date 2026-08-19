@@ -43,6 +43,8 @@ class OverlayIntegrityTest {
     assertTrue(source.contains("storeTabCompleteResponse"));
     assertTrue(source.contains("canDoSeamlessPlaySwitch"));
     assertTrue(source.contains("doSeamlessPlaySwitch"));
+    assertTrue(source.contains("ScoreboardObjectivePacket"));
+    assertTrue(source.contains("trackedScoreboardObjectives"));
   }
 
   @Test
