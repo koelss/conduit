@@ -70,6 +70,11 @@ public final class ConduitDoctor {
     report.append("  Mod compatibility      : ")
         .append(cfg.getModCompatibilityRules().isEnabled()).append('\n');
     report.append("  Metrics HTTP           : ").append(cfg.isMetricsHttpEnabled()).append('\n');
+    report.append("  Seamless switches      : ").append(cfg.isSeamlessServerSwitches())
+        .append(" (experimental)\n");
+    if (cfg.isSeamlessServerSwitches()) {
+      warnings.add("seamless-server-switches is experimental and assumes homogeneous backends");
+    }
 
     if (warnings.isEmpty()) {
       report.append("  Result                 : OK");

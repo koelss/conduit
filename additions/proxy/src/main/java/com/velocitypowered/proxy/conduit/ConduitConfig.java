@@ -134,6 +134,9 @@ public final class ConduitConfig {
   // ── LuckPerms section ─────────────────────────────────────────────────────
   private final boolean luckPermsBundleEnabled;
 
+  // ── Advanced section ──────────────────────────────────────────────────────
+  private final boolean seamlessServerSwitches;
+
   private ConduitConfig(Builder b) {
     validate(b);
     this.maxKnownPacks = b.maxKnownPacks;
@@ -211,6 +214,8 @@ public final class ConduitConfig {
     this.sparkBundleEnabled = b.sparkBundleEnabled;
 
     this.luckPermsBundleEnabled = b.luckPermsBundleEnabled;
+
+    this.seamlessServerSwitches = b.seamlessServerSwitches;
   }
 
   /**
@@ -380,6 +385,11 @@ public final class ConduitConfig {
     CommentedConfig luckperms = toml.get("luckperms");
     if (luckperms != null) {
       b.luckPermsBundleEnabled = luckperms.getOrElse("bundle-enabled", true);
+    }
+
+    CommentedConfig advanced = toml.get("advanced");
+    if (advanced != null) {
+      b.seamlessServerSwitches = advanced.getOrElse("seamless-server-switches", false);
     }
 
     CommentedConfig diag = toml.get("diagnostics");
@@ -842,6 +852,18 @@ public final class ConduitConfig {
     return luckPermsBundleEnabled;
   }
 
+  // ── Advanced getters ──────────────────────────────────────────────────────
+
+  /**
+   * Returns whether experimental seamless server switches are enabled for 1.20.2+ clients.
+   *
+   * <p>Default {@code false}. When disabled, Conduit uses the existing configuration-phase
+   * server switch. Based on the seamless server switching patch by ohemilyy.
+   */
+  public boolean isSeamlessServerSwitches() {
+    return seamlessServerSwitches;
+  }
+
   // ── Builder ───────────────────────────────────────────────────────────────
 
   /** Mutable builder used internally by {@link #fromToml} to construct a {@link ConduitConfig}. */
@@ -923,6 +945,8 @@ public final class ConduitConfig {
     boolean sparkBundleEnabled = true;
 
     boolean luckPermsBundleEnabled = true;
+
+    boolean seamlessServerSwitches = false;
 
     /**
      * Default channel blocklist for {@code ChannelGuard}: well-known World-Downloader and X-Ray

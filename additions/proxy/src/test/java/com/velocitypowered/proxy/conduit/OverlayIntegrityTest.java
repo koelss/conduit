@@ -41,5 +41,16 @@ class OverlayIntegrityTest {
 
     assertTrue(source.contains("TabCompleteCache"));
     assertTrue(source.contains("storeTabCompleteResponse"));
+    assertTrue(source.contains("canDoSeamlessPlaySwitch"));
+    assertTrue(source.contains("doSeamlessPlaySwitch"));
+  }
+
+  @Test
+  void loginOverlayUsesConduitSeamlessFlag() throws Exception {
+    String source = Files.readString(Path.of("../overlays/proxy/src/main/java/com/velocitypowered/"
+        + "proxy/connection/backend/LoginSessionHandler.java"));
+
+    assertTrue(source.contains("isSeamlessServerSwitches"));
+    assertTrue(source.contains("SeamlessConfigSessionHandler"));
   }
 }

@@ -31,6 +31,7 @@ import com.velocitypowered.api.event.player.TabCompleteEvent;
 import com.velocitypowered.api.event.player.configuration.PlayerEnteredConfigurationEvent;
 import com.velocitypowered.api.network.ProtocolVersion;
 import com.velocitypowered.api.proxy.messages.ChannelIdentifier;
+import com.velocitypowered.api.proxy.player.TabListEntry;
 import com.velocitypowered.proxy.VelocityServer;
 import com.velocitypowered.proxy.conduit.Conduit;
 import com.velocitypowered.proxy.conduit.network.TabCompleteCache;
@@ -50,6 +51,7 @@ import com.velocitypowered.proxy.protocol.packet.ClientSettingsPacket;
 import com.velocitypowered.proxy.protocol.packet.JoinGamePacket;
 import com.velocitypowered.proxy.protocol.packet.KeepAlivePacket;
 import com.velocitypowered.proxy.protocol.packet.PluginMessagePacket;
+import com.velocitypowered.proxy.protocol.packet.RemoveEntitiesPacket;
 import com.velocitypowered.proxy.protocol.packet.ResourcePackResponsePacket;
 import com.velocitypowered.proxy.protocol.packet.RespawnPacket;
 import com.velocitypowered.proxy.protocol.packet.ServerboundCookieResponsePacket;
@@ -86,8 +88,10 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Queue;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
@@ -145,6 +149,9 @@ public class ClientPlaySessionHandler implements MinecraftSessionHandler {
   private CompletableFuture<Void> configSwitchFuture;
 
   private int failedTabCompleteAttempts;
+
+  private final Set<Integer> trackedEntityIds = ConcurrentHashMap.newKeySet();
+  private @Nullable Integer currentDimension;
 
   /**
    * Constructs a client play session handler.
@@ -644,7 +651,8 @@ public class ClientPlaySessionHandler implements MinecraftSessionHandler {
    * @param destination the new server we are connecting to
    */
   public void handleBackendJoinGame(JoinGamePacket joinGame, VelocityServerConnection destination) {
-    MinecraftConnection serverMc = destination.ensureConnected();
+    final MinecraftConnection serverMc = destination.ensureConnected();
+    final boolean seamless = spawned && canDoSeamlessPlaySwitch(joinGame, destination);
 
     if (!spawned) {
       // The player wasn't spawned in yet, so we don't need to do anything special.
@@ -653,6 +661,8 @@ public class ClientPlaySessionHandler implements MinecraftSessionHandler {
       player.getConnection().delayedWrite(joinGame);
       // Required for Legacy Forge
       player.getPhase().onFirstJoin(player);
+    } else if (seamless) {
+      this.doSeamlessPlaySwitch();
     } else {
       // Clear tab list to avoid duplicate entries
       player.getTabList().clearAll();
@@ -666,10 +676,17 @@ public class ClientPlaySessionHandler implements MinecraftSessionHandler {
       }
     }
 
+    if (!seamless) {
+      trackedEntityIds.clear();
+    }
+    this.currentDimension = joinGame.getDimension();
+
     destination.setEntityId(joinGame.getEntityId()); // Sound API function
 
     if (player.getProtocolVersion().noLessThan(ProtocolVersion.MINECRAFT_1_20_2)) {
-      player.getBossBarManager().sendBossBars();
+      if (!seamless) {
+        player.getBossBarManager().sendBossBars();
+      }
     } else {
       // Remove previous boss bars. These don't get cleared when sending JoinGame (up until 1.20.2),
       // thus the need to track them.
@@ -705,7 +722,7 @@ public class ClientPlaySessionHandler implements MinecraftSessionHandler {
     loginPluginMessagesCount.set(0);
 
     // Clear any title from the previous server.
-    if (player.getProtocolVersion().noLessThan(ProtocolVersion.MINECRAFT_1_8)) {
+    if (!seamless && player.getProtocolVersion().noLessThan(ProtocolVersion.MINECRAFT_1_8)) {
       player.getConnection().delayedWrite(
           GenericTitlePacket.constructTitlePacket(GenericTitlePacket.ActionType.RESET,
               player.getProtocolVersion()));
@@ -715,6 +732,35 @@ public class ClientPlaySessionHandler implements MinecraftSessionHandler {
     player.getConnection().flush();
     serverMc.flush();
     destination.completeJoin();
+  }
+
+  private boolean canDoSeamlessPlaySwitch(JoinGamePacket joinGame, VelocityServerConnection destination) {
+    if (!Conduit.get().getConfig().isSeamlessServerSwitches()) {
+      return false;
+    }
+    if (player.getProtocolVersion().lessThan(ProtocolVersion.MINECRAFT_1_20_2)) {
+      return false;
+    }
+    if (player.getConnection().getType() == ConnectionTypes.LEGACY_FORGE) {
+      return false;
+    }
+    if (player.getConnectionInFlight() != destination) {
+      return false;
+    }
+    return currentDimension != null && currentDimension == joinGame.getDimension();
+  }
+
+  private void doSeamlessPlaySwitch() {
+    for (TabListEntry entry : player.getTabList().getEntries()) {
+      final UUID uuid = entry.getProfile().getId();
+      if (!uuid.equals(player.getUniqueId())) {
+        player.getTabList().removeEntry(uuid);
+      }
+    }
+    if (!trackedEntityIds.isEmpty()) {
+      player.getConnection().delayedWrite(new RemoveEntitiesPacket(new ArrayList<>(trackedEntityIds)));
+      trackedEntityIds.clear();
+    }
   }
 
   private void doFastClientServerSwitch(JoinGamePacket joinGame) {
@@ -759,6 +805,14 @@ public class ClientPlaySessionHandler implements MinecraftSessionHandler {
 
   public List<UUID> getServerBossBars() {
     return serverBossBars;
+  }
+
+  public Set<Integer> getTrackedEntityIds() {
+    return trackedEntityIds;
+  }
+
+  public void setCurrentDimension(int dimension) {
+    this.currentDimension = dimension;
   }
 
   private boolean handleCommandTabComplete(TabCompleteRequestPacket packet) {

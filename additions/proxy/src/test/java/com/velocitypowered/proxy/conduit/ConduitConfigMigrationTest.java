@@ -62,6 +62,7 @@ class ConduitConfigMigrationTest {
     assertFalse(config.isAdminCommandsEnabled());
     assertFalse(config.isCommandForwardingEnabled());
     assertEquals("velocity_command_forward:main", config.getCommandForwardingChannel());
+    assertFalse(config.isSeamlessServerSwitches(), "new advanced option defaults to false");
   }
 
   @Test

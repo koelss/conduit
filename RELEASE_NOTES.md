@@ -1,3 +1,17 @@
+# Conduit 1.7.0
+
+## Added
+
+- **Experimental seamless server switches** for Minecraft 1.20.2+ clients, controlled by
+  `conduit.toml` → `[advanced] seamless-server-switches` (default **false**). When enabled, eligible
+  same-dimension switches between homogeneous backends skip the client configuration screen and keep
+  the world loaded. Cross-dimension switches, pre-1.20.2 clients, and Legacy Forge still use the
+  existing switch path.
+
+### Credits
+
+- **Seamless server switching:** Based on the seamless server switching patch by [@ohemilyy](https://github.com/ohemilyy), originally provided in `b5a97c65eea43a1a3d5e21589b67e2888729e1e4` (`feat: seamless server switches`).
+
 # Conduit 1.6.3
 
 ## Fixed
