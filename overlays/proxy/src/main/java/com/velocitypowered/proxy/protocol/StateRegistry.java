@@ -69,6 +69,8 @@ import com.velocitypowered.proxy.protocol.packet.DialogShowPacket;
 import com.velocitypowered.proxy.protocol.packet.DisconnectPacket;
 import com.velocitypowered.proxy.protocol.packet.EncryptionRequestPacket;
 import com.velocitypowered.proxy.protocol.packet.EncryptionResponsePacket;
+import com.velocitypowered.proxy.protocol.packet.EntityEffectPacket;
+import com.velocitypowered.proxy.protocol.packet.GameEventPacket;
 import com.velocitypowered.proxy.protocol.packet.HandshakePacket;
 import com.velocitypowered.proxy.protocol.packet.HeaderAndFooterPacket;
 import com.velocitypowered.proxy.protocol.packet.JoinGamePacket;
@@ -80,6 +82,7 @@ import com.velocitypowered.proxy.protocol.packet.LoginPluginResponsePacket;
 import com.velocitypowered.proxy.protocol.packet.PingIdentifyPacket;
 import com.velocitypowered.proxy.protocol.packet.PluginMessagePacket;
 import com.velocitypowered.proxy.protocol.packet.RemoveEntitiesPacket;
+import com.velocitypowered.proxy.protocol.packet.RemoveEntityEffectPacket;
 import com.velocitypowered.proxy.protocol.packet.RemovePlayerInfoPacket;
 import com.velocitypowered.proxy.protocol.packet.RemoveResourcePackPacket;
 import com.velocitypowered.proxy.protocol.packet.ResourcePackRequestPacket;
@@ -560,6 +563,13 @@ public enum StateRegistry {
           map(0x2B, MINECRAFT_1_21_9, false),
           map(0x2C, MINECRAFT_26_1, false));
       clientbound.register(
+          GameEventPacket.class, GameEventPacket::new,
+          map(0x20, MINECRAFT_1_20_2, false),
+          map(0x22, MINECRAFT_1_20_5, false),
+          map(0x23, MINECRAFT_1_21_2, false),
+          map(0x22, MINECRAFT_1_21_5, false),
+          map(0x26, MINECRAFT_1_21_9, false));
+      clientbound.register(
           JoinGamePacket.class,
           JoinGamePacket::new,
           map(0x01, MINECRAFT_1_7_2, false),
@@ -613,6 +623,14 @@ public enum StateRegistry {
           map(0x4B, MINECRAFT_1_21_9, false),
           map(0x4D, MINECRAFT_26_1, false));
       clientbound.register(
+          RemoveEntityEffectPacket.class, RemoveEntityEffectPacket::new,
+          map(0x41, MINECRAFT_1_20_2, false),
+          map(0x43, MINECRAFT_1_20_5, false),
+          map(0x48, MINECRAFT_1_21_2, false),
+          map(0x47, MINECRAFT_1_21_5, false),
+          map(0x4C, MINECRAFT_1_21_9, false),
+          map(0x4E, MINECRAFT_26_1, false));
+      clientbound.register(
           ScoreboardObjectivePacket.class, ScoreboardObjectivePacket::new,
           map(0x5A, MINECRAFT_1_20_2, false),
           map(0x5C, MINECRAFT_1_20_3, false),
@@ -630,6 +648,14 @@ public enum StateRegistry {
           map(0x66, MINECRAFT_1_21_5, false),
           map(0x6B, MINECRAFT_1_21_9, false),
           map(0x6D, MINECRAFT_26_1, false));
+      clientbound.register(
+          EntityEffectPacket.class, EntityEffectPacket::new,
+          map(0x6E, MINECRAFT_1_20_2, false),
+          map(0x72, MINECRAFT_1_20_3, false),
+          map(0x76, MINECRAFT_1_20_5, false),
+          map(0x7D, MINECRAFT_1_21_2, false),
+          map(0x82, MINECRAFT_1_21_9, false),
+          map(0x84, MINECRAFT_26_1, false));
       clientbound.register(
           RemoveResourcePackPacket.class,
           RemoveResourcePackPacket::new,

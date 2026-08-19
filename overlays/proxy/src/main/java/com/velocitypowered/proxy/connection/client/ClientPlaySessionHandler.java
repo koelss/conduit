@@ -48,10 +48,13 @@ import com.velocitypowered.proxy.protocol.StateRegistry;
 import com.velocitypowered.proxy.protocol.netty.MinecraftDecoder;
 import com.velocitypowered.proxy.protocol.packet.BossBarPacket;
 import com.velocitypowered.proxy.protocol.packet.ClientSettingsPacket;
+import com.velocitypowered.proxy.protocol.packet.GameEventPacket;
+import com.velocitypowered.proxy.protocol.packet.HeaderAndFooterPacket;
 import com.velocitypowered.proxy.protocol.packet.JoinGamePacket;
 import com.velocitypowered.proxy.protocol.packet.KeepAlivePacket;
 import com.velocitypowered.proxy.protocol.packet.PluginMessagePacket;
 import com.velocitypowered.proxy.protocol.packet.RemoveEntitiesPacket;
+import com.velocitypowered.proxy.protocol.packet.RemoveEntityEffectPacket;
 import com.velocitypowered.proxy.protocol.packet.ResourcePackResponsePacket;
 import com.velocitypowered.proxy.protocol.packet.RespawnPacket;
 import com.velocitypowered.proxy.protocol.packet.ScoreboardObjectivePacket;
@@ -155,7 +158,9 @@ public class ClientPlaySessionHandler implements MinecraftSessionHandler {
   private final Set<Integer> trackedEntityIds = ConcurrentHashMap.newKeySet();
   private final Set<String> trackedScoreboardObjectives = ConcurrentHashMap.newKeySet();
   private final Set<String> trackedScoreboardTeams = ConcurrentHashMap.newKeySet();
+  private final Set<Integer> trackedPlayerEffects = ConcurrentHashMap.newKeySet();
   private @Nullable Integer currentDimension;
+  private @Nullable Integer clientEntityId;
 
   /**
    * Constructs a client play session handler.
@@ -662,11 +667,12 @@ public class ClientPlaySessionHandler implements MinecraftSessionHandler {
       // The player wasn't spawned in yet, so we don't need to do anything special.
       // Send JoinGame.
       spawned = true;
+      this.clientEntityId = joinGame.getEntityId();
       player.getConnection().delayedWrite(joinGame);
       // Required for Legacy Forge
       player.getPhase().onFirstJoin(player);
     } else if (seamless) {
-      this.doSeamlessPlaySwitch();
+      this.doSeamlessPlaySwitch(joinGame);
     } else {
       // Clear tab list to avoid duplicate entries
       player.getTabList().clearAll();
@@ -684,6 +690,9 @@ public class ClientPlaySessionHandler implements MinecraftSessionHandler {
       trackedEntityIds.clear();
       trackedScoreboardObjectives.clear();
       trackedScoreboardTeams.clear();
+      trackedPlayerEffects.clear();
+      serverBossBars.clear();
+      this.clientEntityId = joinGame.getEntityId();
     }
     this.currentDimension = joinGame.getDimension();
 
@@ -756,7 +765,7 @@ public class ClientPlaySessionHandler implements MinecraftSessionHandler {
     return currentDimension != null && currentDimension == joinGame.getDimension();
   }
 
-  private void doSeamlessPlaySwitch() {
+  private void doSeamlessPlaySwitch(JoinGamePacket joinGame) {
     for (TabListEntry entry : player.getTabList().getEntries()) {
       final UUID uuid = entry.getProfile().getId();
       if (!uuid.equals(player.getUniqueId())) {
@@ -778,6 +787,31 @@ public class ClientPlaySessionHandler implements MinecraftSessionHandler {
         player.getConnection().delayedWrite(ScoreboardObjectivePacket.remove(objective));
       }
       trackedScoreboardObjectives.clear();
+    }
+    if (!serverBossBars.isEmpty()) {
+      for (UUID barId : new ArrayList<>(serverBossBars)) {
+        BossBarPacket deletePacket = new BossBarPacket();
+        deletePacket.setUuid(barId);
+        deletePacket.setAction(BossBarPacket.REMOVE);
+        player.getConnection().delayedWrite(deletePacket);
+      }
+      serverBossBars.clear();
+    }
+    if (clientEntityId != null && !trackedPlayerEffects.isEmpty()) {
+      for (int effectId : trackedPlayerEffects) {
+        player.getConnection().delayedWrite(new RemoveEntityEffectPacket(clientEntityId, effectId));
+      }
+      trackedPlayerEffects.clear();
+    }
+    player.getConnection().delayedWrite(GameEventPacket.changeGamemode(joinGame.getGamemode()));
+    player.getConnection().delayedWrite(
+        new GameEventPacket(GameEventPacket.EVENT_LIMITED_CRAFTING,
+            joinGame.getDoLimitedCrafting() ? 1.0f : 0.0f));
+    player.getConnection().delayedWrite(
+        new GameEventPacket(GameEventPacket.EVENT_END_RAINING, 0.0f));
+    if (player.getProtocolVersion().noLessThan(ProtocolVersion.MINECRAFT_1_8)) {
+      player.getConnection().delayedWrite(HeaderAndFooterPacket.reset(player.getProtocolVersion()));
+      player.clearPlayerListHeaderAndFooterSilent();
     }
   }
 
@@ -835,6 +869,14 @@ public class ClientPlaySessionHandler implements MinecraftSessionHandler {
 
   public Set<String> getTrackedScoreboardTeams() {
     return trackedScoreboardTeams;
+  }
+
+  public Set<Integer> getTrackedPlayerEffects() {
+    return trackedPlayerEffects;
+  }
+
+  public @Nullable Integer getClientEntityId() {
+    return clientEntityId;
   }
 
   public void setCurrentDimension(int dimension) {

@@ -15,6 +15,10 @@
   `An objective with the name 'sidebar' already exists!`. The proxy tracks backend scoreboard
   objectives and teams and removes them from the client before the new server's packets arrive.
 
+- **Seamless switches now apply destination player state.** Hub leftover **boss bars** (TAB RAM/TPS
+  bars), **gamemode** (e.g. staying in Adventure), and **status effects** are cleared or rewritten
+  from the destination Join Game / effect packets so the client uses the new backend's data.
+
 ### Credits
 
 - **Seamless server switching:** Based on the seamless server switching patch by [@ohemilyy](https://github.com/ohemilyy), originally provided in `b5a97c65eea43a1a3d5e21589b67e2888729e1e4` (`feat: seamless server switches`).

@@ -45,6 +45,8 @@ class OverlayIntegrityTest {
     assertTrue(source.contains("doSeamlessPlaySwitch"));
     assertTrue(source.contains("ScoreboardObjectivePacket"));
     assertTrue(source.contains("trackedScoreboardObjectives"));
+    assertTrue(source.contains("GameEventPacket.changeGamemode"));
+    assertTrue(source.contains("trackedPlayerEffects"));
   }
 
   @Test

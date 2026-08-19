@@ -51,10 +51,12 @@ import com.velocitypowered.proxy.protocol.packet.ClientSettingsPacket;
 import com.velocitypowered.proxy.protocol.packet.ClientboundCookieRequestPacket;
 import com.velocitypowered.proxy.protocol.packet.ClientboundStoreCookiePacket;
 import com.velocitypowered.proxy.protocol.packet.DisconnectPacket;
+import com.velocitypowered.proxy.protocol.packet.EntityEffectPacket;
 import com.velocitypowered.proxy.protocol.packet.KeepAlivePacket;
 import com.velocitypowered.proxy.protocol.packet.LegacyPlayerListItemPacket;
 import com.velocitypowered.proxy.protocol.packet.PluginMessagePacket;
 import com.velocitypowered.proxy.protocol.packet.RemoveEntitiesPacket;
+import com.velocitypowered.proxy.protocol.packet.RemoveEntityEffectPacket;
 import com.velocitypowered.proxy.protocol.packet.RemovePlayerInfoPacket;
 import com.velocitypowered.proxy.protocol.packet.RemoveResourcePackPacket;
 import com.velocitypowered.proxy.protocol.packet.ResourcePackRequestPacket;
@@ -77,6 +79,8 @@ import io.netty.buffer.Unpooled;
 import io.netty.channel.Channel;
 import io.netty.handler.timeout.ReadTimeoutException;
 import java.net.InetSocketAddress;
+import java.util.function.IntConsumer;
+import java.util.function.IntSupplier;
 import java.util.regex.Pattern;
 import net.kyori.adventure.key.Key;
 import org.apache.logging.log4j.LogManager;
@@ -206,6 +210,37 @@ public class BackendPlaySessionHandler implements MinecraftSessionHandler {
   }
 
   @Override
+  public boolean handle(EntityEffectPacket packet) {
+    if (rewritePlayerEntityId(packet::getEntityId, packet::setEntityId)) {
+      playerSessionHandler.getTrackedPlayerEffects().add(packet.getEffectId());
+    }
+    return false;
+  }
+
+  @Override
+  public boolean handle(RemoveEntityEffectPacket packet) {
+    if (rewritePlayerEntityId(packet::getEntityId, packet::setEntityId)) {
+      playerSessionHandler.getTrackedPlayerEffects().remove(packet.getEffectId());
+    }
+    return false;
+  }
+
+  private boolean rewritePlayerEntityId(IntSupplier getter, IntConsumer setter) {
+    Integer backendEntityId = serverConn.getEntityId();
+    Integer clientEntityId = playerSessionHandler.getClientEntityId();
+    if (backendEntityId == null || clientEntityId == null) {
+      return false;
+    }
+    if (getter.getAsInt() != backendEntityId) {
+      return false;
+    }
+    if (!backendEntityId.equals(clientEntityId)) {
+      setter.accept(clientEntityId);
+    }
+    return true;
+  }
+
+  @Override
   public boolean handle(KeepAlivePacket packet) {
     // Backend advanced to PLAY early while the client is still held in config: echo the keepalive
     // back to keep the backend alive instead of forwarding it to the still-configuring client.
@@ -233,12 +268,10 @@ public class BackendPlaySessionHandler implements MinecraftSessionHandler {
 
   @Override
   public boolean handle(BossBarPacket packet) {
-    if (serverConn.getPlayer().getProtocolVersion().lessThan(ProtocolVersion.MINECRAFT_1_20_2)) {
-      if (packet.getAction() == BossBarPacket.ADD) {
-        playerSessionHandler.getServerBossBars().add(packet.getUuid());
-      } else if (packet.getAction() == BossBarPacket.REMOVE) {
-        playerSessionHandler.getServerBossBars().remove(packet.getUuid());
-      }
+    if (packet.getAction() == BossBarPacket.ADD) {
+      playerSessionHandler.getServerBossBars().add(packet.getUuid());
+    } else if (packet.getAction() == BossBarPacket.REMOVE) {
+      playerSessionHandler.getServerBossBars().remove(packet.getUuid());
     }
 
     return false; // Forward
