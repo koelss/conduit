@@ -51,6 +51,9 @@ class OverlayIntegrityTest {
     assertTrue(source.contains("isPlayStaySwitch"));
     assertTrue(source.contains("stripPreviousServerHud"));
     assertTrue(source.contains("EntityMetadataPacket.resetBreathAndSwim"));
+    assertTrue(source.contains("EVENT_RAIN_LEVEL_CHANGE"));
+    assertTrue(source.contains("EVENT_THUNDER_LEVEL_CHANGE"));
+    assertTrue(source.contains("dimensionKey"));
     assertTrue(source.contains("getConnectionInFlightOrConnectedServer"));
     assertTrue(source.contains("ServerboundPlayerLoadedPacket"));
   }

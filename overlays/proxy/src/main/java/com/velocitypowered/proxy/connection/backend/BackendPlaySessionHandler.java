@@ -189,7 +189,7 @@ public class BackendPlaySessionHandler implements MinecraftSessionHandler {
 
   @Override
   public boolean handle(RespawnPacket packet) {
-    playerSessionHandler.setCurrentDimension(packet.getDimension());
+    playerSessionHandler.setCurrentDimension(packet.getDimension(), packet.getDimensionInfo());
     return false;
   }
 

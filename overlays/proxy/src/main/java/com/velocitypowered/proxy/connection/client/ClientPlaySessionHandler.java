@@ -44,6 +44,7 @@ import com.velocitypowered.proxy.connection.backend.BungeeCordMessageResponder;
 import com.velocitypowered.proxy.connection.backend.VelocityServerConnection;
 import com.velocitypowered.proxy.connection.forge.legacy.LegacyForgeConstants;
 import com.velocitypowered.proxy.connection.player.resourcepack.ResourcePackResponseBundle;
+import com.velocitypowered.proxy.connection.registry.DimensionInfo;
 import com.velocitypowered.proxy.protocol.MinecraftPacket;
 import com.velocitypowered.proxy.protocol.StateRegistry;
 import com.velocitypowered.proxy.protocol.netty.MinecraftDecoder;
@@ -96,6 +97,7 @@ import io.netty.util.ReferenceCountUtil;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Queue;
 import java.util.Set;
@@ -134,6 +136,10 @@ public class ClientPlaySessionHandler implements MinecraftSessionHandler {
 
   private static final Logger LOGGER = LogManager.getLogger(ClientPlaySessionHandler.class);
 
+  // Number of status effects present in every client that can switch seamlessly (1.20.2+): the
+  // vanilla effects from speed up to and including darkness.
+  private static final int VANILLA_EFFECT_COUNT = 33;
+
   private final ConnectedPlayer player;
 
   private boolean spawned = false;
@@ -166,7 +172,7 @@ public class ClientPlaySessionHandler implements MinecraftSessionHandler {
   private final Set<String> trackedScoreboardObjectives = ConcurrentHashMap.newKeySet();
   private final Set<String> trackedScoreboardTeams = ConcurrentHashMap.newKeySet();
   private final Set<Integer> trackedPlayerEffects = ConcurrentHashMap.newKeySet();
-  private @Nullable Integer currentDimension;
+  private @Nullable String currentDimension;
   private @Nullable Integer clientEntityId;
   private boolean seamlessPlayActive;
 
@@ -670,7 +676,7 @@ public class ClientPlaySessionHandler implements MinecraftSessionHandler {
     final MinecraftConnection serverMc = destination.ensureConnected();
     final boolean playStay = spawned && isPlayStaySwitch(destination);
     final boolean seamless = playStay && currentDimension != null
-        && currentDimension == joinGame.getDimension();
+        && currentDimension.equals(dimensionKey(joinGame));
 
     if (!spawned) {
       // The player wasn't spawned in yet, so we don't need to do anything special.
@@ -718,7 +724,7 @@ public class ClientPlaySessionHandler implements MinecraftSessionHandler {
       serverBossBars.clear();
       this.clientEntityId = joinGame.getEntityId();
     }
-    this.currentDimension = joinGame.getDimension();
+    this.currentDimension = dimensionKey(joinGame);
 
     destination.setEntityId(joinGame.getEntityId()); // Sound API function
 
@@ -849,7 +855,25 @@ public class ClientPlaySessionHandler implements MinecraftSessionHandler {
     if (!isPlayStaySwitch(destination)) {
       return false;
     }
-    return currentDimension != null && currentDimension == joinGame.getDimension();
+    return currentDimension != null && currentDimension.equals(dimensionKey(joinGame));
+  }
+
+  /**
+   * Returns a value identifying the dimension a Join Game or Respawn packet places the player in.
+   *
+   * <p>Which field actually carries the dimension depends on the protocol: 1.20.5 and newer send a
+   * numeric dimension type id, while 1.20.2 to 1.20.4 send the registry identifier as a string and
+   * leave the numeric field at zero. Comparing only the numeric field made every 1.20.2-1.20.4
+   * switch look like a same-dimension move, so the client was never told about a dimension change
+   * and kept the previous world's sky, lighting, and weather.
+   */
+  private static String dimensionKey(int dimension, @Nullable DimensionInfo dimensionInfo) {
+    final String identifier = dimensionInfo == null ? "" : dimensionInfo.getRegistryIdentifier();
+    return identifier.isEmpty() ? Integer.toString(dimension) : identifier;
+  }
+
+  private static String dimensionKey(JoinGamePacket joinGame) {
+    return dimensionKey(joinGame.getDimension(), joinGame.getDimensionInfo());
   }
 
   private void doSeamlessPlaySwitch(JoinGamePacket joinGame) {
@@ -858,8 +882,27 @@ public class ClientPlaySessionHandler implements MinecraftSessionHandler {
     player.getConnection().delayedWrite(
         new GameEventPacket(GameEventPacket.EVENT_LIMITED_CRAFTING,
             joinGame.getDoLimitedCrafting() ? 1.0f : 0.0f));
+    clearWeather();
+  }
+
+  /**
+   * Returns the client to clear weather so the previous server's rain or thunderstorm does not
+   * follow the player.
+   *
+   * <p>A destination server only announces weather when it actually has some, so nothing would undo
+   * the previous server's storm. Ending the rain on its own is not enough either: the client stores
+   * the rain and thunder gradients separately and ending the rain sets the rain gradient to full,
+   * expecting the server to fade it out with subsequent level updates. Both gradients are therefore
+   * zeroed here as well. A destination that is raining sends its own weather state right after the
+   * switch, which overrides this.
+   */
+  private void clearWeather() {
     player.getConnection().delayedWrite(
         new GameEventPacket(GameEventPacket.EVENT_END_RAINING, 0.0f));
+    player.getConnection().delayedWrite(
+        new GameEventPacket(GameEventPacket.EVENT_RAIN_LEVEL_CHANGE, 0.0f));
+    player.getConnection().delayedWrite(
+        new GameEventPacket(GameEventPacket.EVENT_THUNDER_LEVEL_CHANGE, 0.0f));
   }
 
   private void stripPreviousServerHud() {
@@ -890,12 +933,7 @@ public class ClientPlaySessionHandler implements MinecraftSessionHandler {
       player.getConnection().delayedWrite(EntityEventPacket.clearOperator(clientEntityId));
       player.getConnection().delayedWrite(EntityMetadataPacket.resetBreathAndSwim(clientEntityId));
     }
-    if (clientEntityId != null && !trackedPlayerEffects.isEmpty()) {
-      for (int effectId : trackedPlayerEffects) {
-        player.getConnection().delayedWrite(new RemoveEntityEffectPacket(clientEntityId, effectId));
-      }
-      trackedPlayerEffects.clear();
-    }
+    clearPlayerEffects();
     if (player.getProtocolVersion().noLessThan(ProtocolVersion.MINECRAFT_1_8)) {
       player.getConnection().delayedWrite(HeaderAndFooterPacket.reset(player.getProtocolVersion()));
       player.clearPlayerListHeaderAndFooterSilent();
@@ -907,6 +945,45 @@ public class ClientPlaySessionHandler implements MinecraftSessionHandler {
           GenericTitlePacket.constructTitlePacket(GenericTitlePacket.ActionType.RESET,
               player.getProtocolVersion()));
     }
+  }
+
+  /**
+   * Removes the previous server's status effects from the client.
+   *
+   * <p>The effects a server sends are tracked as they pass through the proxy, but a status effect
+   * that was never observed (for example one applied while the player was being handed over between
+   * servers) would otherwise stay on the client's HUD forever: the destination server does not know
+   * about it, so nothing there can clear it either. The vanilla effects every 1.20.2+ client knows
+   * are therefore always removed on top of the tracked ones. Removing an effect the player does not
+   * have is a no-op on the client, and the destination sends its own effects after the switch.
+   */
+  private void clearPlayerEffects() {
+    if (clientEntityId == null) {
+      trackedPlayerEffects.clear();
+      return;
+    }
+    for (int effectId : effectIdsToClear(player.getProtocolVersion(), trackedPlayerEffects)) {
+      player.getConnection().delayedWrite(new RemoveEntityEffectPacket(clientEntityId, effectId));
+    }
+    trackedPlayerEffects.clear();
+  }
+
+  /**
+   * Returns the effect ids to remove from the client: the tracked ones plus the vanilla effects
+   * that exist in every version able to switch seamlessly.
+   *
+   * <p>Effect ids are registry ids from 1.20.5 onwards and the one-based legacy ids before that, so
+   * the vanilla range shifts by one. It deliberately stops at the effects that shipped in 1.20.2
+   * ({@code speed} through {@code darkness}) — an id the client's registry does not contain fails
+   * to decode and drops the connection, and later additions are covered by the tracked set.
+   */
+  static Set<Integer> effectIdsToClear(ProtocolVersion version, Set<Integer> trackedEffects) {
+    final Set<Integer> effectIds = new LinkedHashSet<>(trackedEffects);
+    final int firstId = version.noLessThan(ProtocolVersion.MINECRAFT_1_20_5) ? 0 : 1;
+    for (int i = 0; i < VANILLA_EFFECT_COUNT; i++) {
+      effectIds.add(firstId + i);
+    }
+    return effectIds;
   }
 
   private void doFastClientServerSwitch(JoinGamePacket joinGame) {
@@ -1002,8 +1079,8 @@ public class ClientPlaySessionHandler implements MinecraftSessionHandler {
     return seamlessPlayActive;
   }
 
-  public void setCurrentDimension(int dimension) {
-    this.currentDimension = dimension;
+  public void setCurrentDimension(int dimension, @Nullable DimensionInfo dimensionInfo) {
+    this.currentDimension = dimensionKey(dimension, dimensionInfo);
   }
 
   private boolean handleCommandTabComplete(TabCompleteRequestPacket packet) {

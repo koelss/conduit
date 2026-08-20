@@ -1,3 +1,29 @@
+# Conduit 1.7.2
+
+## Fixed
+
+- **Rain no longer follows players across a seamless switch.** A storm on the server you left kept
+  raining on a clear destination (for example the hub). Ending the rain is not enough on its own: the
+  client keeps its rain and thunder gradients separate from the "is it raining" flag and expects the
+  server to fade them out, and a destination that has clear weather never sends any weather update at
+  all. A seamless switch now zeroes both gradients as well, and a destination that *is* raining still
+  overrides that with its own weather right after the switch.
+
+- **Status effects no longer stick to players across a seamless switch.** Effects were only removed
+  if the proxy had seen them being applied, so anything applied outside that window stayed on the
+  HUD forever — and because the destination server never granted it, nothing there could clear it
+  either. A seamless switch now also removes every vanilla status effect from the client, on top of
+  the ones it tracked, so no phantom effect can survive the switch. Effects the destination applies
+  are sent after the cleanup and are unaffected.
+
+- **Dimension changes are detected correctly on 1.20.2–1.20.4.** Those versions send the dimension
+  as a registry identifier and leave the numeric dimension field at zero, which made every switch
+  look like a same-dimension move. Cross-dimension switches were therefore treated as seamless and
+  the client kept the previous world's sky, lighting, and weather. The check now compares whichever
+  field actually carries the dimension for the client's protocol.
+
+---
+
 # Conduit 1.7.1
 
 ## Fixed
