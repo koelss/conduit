@@ -49,6 +49,7 @@ import com.velocitypowered.proxy.protocol.StateRegistry;
 import com.velocitypowered.proxy.protocol.netty.MinecraftDecoder;
 import com.velocitypowered.proxy.protocol.packet.BossBarPacket;
 import com.velocitypowered.proxy.protocol.packet.ClientSettingsPacket;
+import com.velocitypowered.proxy.protocol.packet.ClientboundSoundEntityPacket;
 import com.velocitypowered.proxy.protocol.packet.EntityEventPacket;
 import com.velocitypowered.proxy.protocol.packet.EntityMetadataPacket;
 import com.velocitypowered.proxy.protocol.packet.GameEventPacket;
@@ -790,14 +791,21 @@ public class ClientPlaySessionHandler implements MinecraftSessionHandler {
   private void applySeamlessSwitchEffects() {
     final ConduitConfig config = Conduit.get().getConfig();
 
-    if (config.isSeamlessSwitchSoundEnabled()) {
+    // Play the teleport cue by attaching the sound to the player's own (client-visible) entity.
+    // We deliberately do NOT use player.playSound(): at this point in the switch the player's
+    // connected server has not been reassigned yet (TransitionSessionHandler sets it only after
+    // handleBackendJoinGame returns), so Velocity would emit the sound against the previous
+    // server's entity id and the client would hear nothing.
+    if (config.isSeamlessSwitchSoundEnabled() && clientEntityId != null
+        && player.getProtocolVersion().noLessThan(ProtocolVersion.MINECRAFT_1_19_3)) {
       try {
         final Sound sound = Sound.sound(
             Key.key(config.getSeamlessSwitchSound()),
             Sound.Source.PLAYER,
             config.getSeamlessSwitchSoundVolume(),
             config.getSeamlessSwitchSoundPitch());
-        player.playSound(sound);
+        player.getConnection().write(
+            new ClientboundSoundEntityPacket(sound, null, clientEntityId));
       } catch (RuntimeException e) {
         // An invalid sound key must never break the actual server switch.
         LOGGER.warn("Invalid seamless-switch-sound '{}', skipping switch sound: {}",

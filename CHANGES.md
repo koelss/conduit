@@ -16,6 +16,14 @@ All changes relative to upstream `GemstoneGG/Velocity-CTD @ libdeflate`.
   right after the switch, so early movement is buffered until the new server has loaded the player
   in, then reading resumes. This removes the desync and softens the otherwise instantaneous switch.
 
+### Fixed — teleport sound was silent
+
+* The switch sound was played via `player.playSound(...)`, which resolves the emitter against
+  `getConnectedServer()`. During a seamless switch that reassignment happens *after*
+  `handleBackendJoinGame` runs, so the sound targeted the previous server's entity id and the client
+  heard nothing. `applySeamlessSwitchEffects` now writes a `ClientboundSoundEntityPacket` directly
+  against the player's own client-visible entity id (`clientEntityId`), so it reliably plays.
+
 ### Added — configurable settle delay and switch sound (`[advanced]`)
 
 * `seamless-switch-settle-ms` (default `250`, range `0–5000`; `0` restores the old instantaneous

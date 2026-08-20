@@ -9,6 +9,11 @@
   and buffered while the destination loads them in, then released. This removes the desync and, as a
   bonus, stops the switch from feeling jarringly instantaneous.
 
+- **Seamless-switch teleport sound now actually plays.** The cue was emitted against the player's
+  previous server entity (the connected-server reassignment happens after the switch packets are
+  built), so the client heard nothing. It is now sent directly against the player's own client-side
+  entity id, so the ender pearl teleport sound plays on every seamless switch.
+
 ## Added
 
 - **Configurable seamless-switch settle delay.** New `conduit.toml` →
