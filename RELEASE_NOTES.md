@@ -16,6 +16,10 @@
 - **Old `conduit.toml` files pick up the condensed `[advanced]` comments.** The config migrator now
   re-syncs the comment wording above the seamless-switch options to the shipped (shortened) text,
   while preserving every value exactly. No other key is touched.
+- **Stale title/subtitle no longer sticks across a seamless switch.** A title banner set by the
+  previous server (e.g. a hub's `"<server>" server` banner) stayed on screen after a same-dimension
+  seamless switch, so it looked like every server had the same name. The title/subtitle/action bar
+  is now reset as part of the seamless HUD cleanup, matching the non-seamless switch path.
 - **Seamless-switch teleport sound now actually plays.** The cue was emitted against the player's
   previous server entity (the connected-server reassignment happens after the switch packets are
   built), so the client heard nothing. It is now sent directly against the player's own client-side

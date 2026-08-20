@@ -899,6 +899,13 @@ public class ClientPlaySessionHandler implements MinecraftSessionHandler {
     if (player.getProtocolVersion().noLessThan(ProtocolVersion.MINECRAFT_1_8)) {
       player.getConnection().delayedWrite(HeaderAndFooterPacket.reset(player.getProtocolVersion()));
       player.clearPlayerListHeaderAndFooterSilent();
+      // Clear any lingering title/subtitle/action bar from the previous server. The non-seamless
+      // switch path resets the title after Join Game, but a seamless (client-stays-in-Play) switch
+      // never runs that reset, so a title such as a hub's "<server> server" banner would otherwise
+      // stick across the switch.
+      player.getConnection().delayedWrite(
+          GenericTitlePacket.constructTitlePacket(GenericTitlePacket.ActionType.RESET,
+              player.getProtocolVersion()));
     }
   }
 
