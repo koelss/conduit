@@ -28,6 +28,14 @@ All changes relative to upstream `GemstoneGG/Velocity-CTD @ libdeflate`.
   the shipped wording, preserving every value exactly. This is the one documented exception to the
   otherwise append-only, byte-for-byte-preserving contract. Covered by a new regression test.
 
+### Fixed — stale title stuck across seamless switch
+
+* A same-dimension seamless switch keeps the client in Play and never ran the post-JoinGame title
+  reset (that path is gated on `!seamless`), so a title/subtitle set by the previous server — such as
+  a hub's `"<server>" server` banner — persisted after the switch and made every server appear to
+  have the same name. `stripPreviousServerHud` now also writes a `GenericTitlePacket` RESET, so both
+  seamless paths clear the previous server's title/subtitle/action bar.
+
 ### Fixed — teleport sound was silent
 
 * The switch sound was played via `player.playSound(...)`, which resolves the emitter against
