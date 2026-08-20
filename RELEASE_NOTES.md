@@ -9,6 +9,13 @@
   and buffered while the destination loads them in, then released. This removes the desync and, as a
   bonus, stops the switch from feeling jarringly instantaneous.
 
+- **Copyright line updates on existing installs.** Velocity copies `messages.properties` into an
+  on-disk `lang/` folder and only ever *adds* missing keys, so the `/velocity` copyright stayed frozen
+  at the old `Copyright 2018-2026 …` even after the jar was updated. Conduit now force-refreshes that
+  one branding line from the shipped default, so existing installs show `Copyright 2026 tame.gg`.
+- **Old `conduit.toml` files pick up the condensed `[advanced]` comments.** The config migrator now
+  re-syncs the comment wording above the seamless-switch options to the shipped (shortened) text,
+  while preserving every value exactly. No other key is touched.
 - **Seamless-switch teleport sound now actually plays.** The cue was emitted against the player's
   previous server entity (the connected-server reassignment happens after the switch packets are
   built), so the client heard nothing. It is now sent directly against the player's own client-side

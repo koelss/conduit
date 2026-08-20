@@ -16,6 +16,18 @@ All changes relative to upstream `GemstoneGG/Velocity-CTD @ libdeflate`.
   right after the switch, so early movement is buffered until the new server has loaded the player
   in, then reading resumes. This removes the desync and softens the otherwise instantaneous switch.
 
+### Fixed — stale defaults on existing installs now refresh
+
+* **Copyright line.** `TranslationRegistryManager` copies `messages.properties` into `lang/` and its
+  `migrateIfNeeded` was append-only, so the `/velocity` copyright stayed frozen at the old
+  `Copyright 2018-<year> …` on any install created before the branding change. A tightly-scoped
+  force-refresh (`FORCE_REFRESH_KEYS`) now rewrites just `velocity.command.version-copyright` from the
+  shipped default when it differs — no other translation string is touched.
+* **conduit.toml `[advanced]` comments.** `ConduitConfigMigrator` gains a scoped comment-refresh
+  (`COMMENT_REFRESH_KEYS`) that re-syncs the `#` comment lines above the seamless-switch options to
+  the shipped wording, preserving every value exactly. This is the one documented exception to the
+  otherwise append-only, byte-for-byte-preserving contract. Covered by a new regression test.
+
 ### Fixed — teleport sound was silent
 
 * The switch sound was played via `player.playSound(...)`, which resolves the emitter against
