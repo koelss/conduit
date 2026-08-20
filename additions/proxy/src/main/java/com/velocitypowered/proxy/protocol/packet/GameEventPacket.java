@@ -28,8 +28,15 @@ import io.netty.buffer.ByteBuf;
  */
 public class GameEventPacket implements MinecraftPacket {
 
+  public static final int EVENT_START_RAINING = 1;
   public static final int EVENT_END_RAINING = 2;
   public static final int EVENT_CHANGE_GAMEMODE = 3;
+  // The client keeps the rain and thunder gradients separate from the "is it raining" flag, and
+  // only ever changes them when the server tells it to. Ending the rain sets the rain gradient to
+  // full (the client expects the server to fade it out afterwards), so both levels have to be
+  // zeroed explicitly to actually stop rendering precipitation.
+  public static final int EVENT_RAIN_LEVEL_CHANGE = 7;
+  public static final int EVENT_THUNDER_LEVEL_CHANGE = 8;
   public static final int EVENT_LIMITED_CRAFTING = 12;
   public static final int EVENT_START_WAITING_FOR_CHUNKS = 13;
 

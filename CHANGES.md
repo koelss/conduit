@@ -4,6 +4,41 @@ All changes relative to upstream `GemstoneGG/Velocity-CTD @ libdeflate`.
 
 ---
 
+## 1.7.2 — Seamless switch state leaks
+
+### Fixed — weather followed the player across a seamless switch
+
+* `ClientPlaySessionHandler#doSeamlessPlaySwitch` sent only `GameEventPacket.EVENT_END_RAINING`. That
+  clears the client's "is it raining" flag but leaves the rain gradient at full — the client keeps the
+  gradients separate and waits for the server to fade them out — so precipitation and the darkened
+  sky kept rendering. A destination with clear weather never sends a weather update, so nothing
+  corrected it.
+* The new `clearWeather()` also sends `EVENT_RAIN_LEVEL_CHANGE` and `EVENT_THUNDER_LEVEL_CHANGE` with
+  a level of `0.0`. A raining destination announces its own weather right after the switch, which
+  overrides the reset.
+
+### Fixed — status effects survived a seamless switch and could not be cleared
+
+* Effect cleanup relied entirely on `trackedPlayerEffects`, so any effect the proxy did not observe
+  being applied stayed on the client's HUD indefinitely. The destination server never granted it, so
+  `/effect clear` there had nothing to remove.
+* `ClientPlaySessionHandler#clearPlayerEffects` now removes the tracked effects *and* every vanilla
+  effect that exists in each client able to switch seamlessly (`speed` through `darkness`; registry
+  ids from 1.20.5, one-based legacy ids before that). The range deliberately stops at the 1.20.2
+  effects: an id missing from the client's registry fails to decode and would drop the connection,
+  and later additions remain covered by the tracked set.
+
+### Fixed — dimension comparison ignored 1.20.2–1.20.4 clients
+
+* Join Game and Respawn carry the dimension as a registry identifier on 1.20.2–1.20.4 and as a
+  numeric dimension type id from 1.20.5, and the unused field is left at zero. Comparing only the
+  numeric field made every 1.20.2–1.20.4 switch look like a same-dimension move, so cross-dimension
+  switches were performed seamlessly and the client kept the old world's sky, lighting, and weather.
+* `ClientPlaySessionHandler` now keys on a `dimensionKey(…)` string that picks whichever field
+  actually carries the dimension. `RespawnPacket` gains a `getDimensionInfo()` accessor for it.
+
+---
+
 ## 1.7.1 — Seamless switch settle delay & teleport sound
 
 ### Fixed — seamless switch "stuck until reconnect"
