@@ -24,4 +24,18 @@ package com.velocitypowered.proxy.protocol.packet;
  * @date 19/08/2026
  */
 public class EntityVelocityPacket extends EntityIdPayloadPacket {
+
+  /**
+   * Returns a packet that brings an entity to a standstill, dropping any momentum it carries.
+   *
+   * <p>Only usable up to 1.21.1: the velocity is three shorts there, while 1.21.2 replaced the
+   * player's position packet with one that carries velocity itself, so those clients have their
+   * momentum reset by the destination's own spawn teleport.
+   */
+  public static EntityVelocityPacket stop(int entityId) {
+    EntityVelocityPacket packet = new EntityVelocityPacket();
+    packet.setEntityId(entityId);
+    packet.setExtra(new byte[6]);
+    return packet;
+  }
 }

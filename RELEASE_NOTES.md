@@ -1,3 +1,20 @@
+# Conduit 1.7.3
+
+## Fixed
+
+- **Arrows, potion particles, and other leftover visuals no longer follow players across a seamless
+  switch.** A seamless switch keeps the client's player entity alive, so every visual stored on that
+  entity was inherited from the server the player left, and a destination server only ever sends the
+  entity data that differs from its own idea of a freshly joined player — it never clears any of it.
+  A switch now resets the player's entity completely: arrows and bee stingers stuck in them, potion
+  effect particles and the ambient-effect flag, being on fire, air bubbles, the powder-snow freeze
+  overlay, invisibility and glowing, sneaking, sprinting, swimming and elytra flight, the item-use
+  and riptide animations, and a crawling, swimming, or sleeping pose. On clients before 1.21.2 any
+  leftover momentum is dropped as well; from 1.21.2 the destination's own spawn teleport already
+  does that.
+
+---
+
 # Conduit 1.7.2
 
 ## Fixed
