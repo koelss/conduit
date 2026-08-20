@@ -17,6 +17,7 @@
 
 package com.velocitypowered.proxy.connection.backend;
 
+import com.velocitypowered.api.network.ProtocolVersion;
 import com.velocitypowered.proxy.VelocityServer;
 import com.velocitypowered.proxy.connection.MinecraftConnection;
 import com.velocitypowered.proxy.connection.MinecraftSessionHandler;
@@ -26,10 +27,12 @@ import com.velocitypowered.proxy.connection.util.ConnectionRequestResults.Impl;
 import com.velocitypowered.proxy.protocol.StateRegistry;
 import com.velocitypowered.proxy.protocol.packet.DisconnectPacket;
 import com.velocitypowered.proxy.protocol.packet.KeepAlivePacket;
+import com.velocitypowered.proxy.protocol.packet.PluginMessagePacket;
 import com.velocitypowered.proxy.protocol.packet.config.CodeOfConductAcceptPacket;
 import com.velocitypowered.proxy.protocol.packet.config.CodeOfConductPacket;
 import com.velocitypowered.proxy.protocol.packet.config.FinishedUpdatePacket;
 import com.velocitypowered.proxy.protocol.packet.config.KnownPacksPacket;
+import com.velocitypowered.proxy.protocol.util.PluginMessageUtil;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -88,6 +91,31 @@ class SeamlessConfigSessionHandler implements MinecraftSessionHandler {
   @Override
   public boolean handle(KeepAlivePacket packet) {
     serverConn.ensureConnected().write(packet);
+    return true;
+  }
+
+  @Override
+  public boolean handle(PluginMessagePacket packet) {
+    // Since 1.20.2 the backend announces its server brand during the configuration phase. Because a
+    // seamless switch absorbs that phase, the brand would otherwise never reach the client and the
+    // F3 debug screen would keep showing the previous server's brand. Rewrite it (appending the
+    // proxy brand, exactly as BackendPlaySessionHandler does in Play) and forward it to the client,
+    // which is still in the Play state and accepts a minecraft:brand message there.
+    if (PluginMessageUtil.isMcBrand(packet)) {
+      final MinecraftConnection playerConnection = serverConn.getPlayer().getConnection();
+      final PluginMessagePacket rewritten = PluginMessageUtil.rewriteMinecraftBrand(packet,
+          server.getVersion(),
+          playerConnection.getProtocolVersion(),
+          server.getConfiguration().getServerBrand(),
+          server.getConfiguration().getProxyBrandCustom(),
+          server.getConfiguration().getBackendBrandCustom(),
+          serverConn.getServer().getServerInfo().getName(),
+          ProtocolVersion.getVersionByName(server.getConfiguration().getMinimumVersion())
+              .getVersionIntroducedIn());
+      playerConnection.write(rewritten);
+    }
+    // Any other config-phase plugin message (resource packs, cookies, …) is intentionally dropped
+    // during a seamless switch, matching the rest of this handler.
     return true;
   }
 

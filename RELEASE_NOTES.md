@@ -16,6 +16,11 @@
 - **Old `conduit.toml` files pick up the condensed `[advanced]` comments.** The config migrator now
   re-syncs the comment wording above the seamless-switch options to the shipped (shortened) text,
   while preserving every value exactly. No other key is touched.
+- **F3 server brand now updates on a seamless switch.** The backend announces its server brand
+  (shown on the F3 debug screen, e.g. `"<server>" (Conduit)`) during the configuration phase. A
+  seamless switch absorbs that phase, so the new brand never reached the client and F3 kept showing
+  the previous server's name. The absorbed brand message is now rewritten and forwarded to the
+  client, so F3 reflects the server you are actually on.
 - **Stale title/subtitle no longer sticks across a seamless switch.** A title banner set by the
   previous server (e.g. a hub's `"<server>" server` banner) stayed on screen after a same-dimension
   seamless switch, so it looked like every server had the same name. The title/subtitle/action bar

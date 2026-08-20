@@ -28,6 +28,17 @@ All changes relative to upstream `GemstoneGG/Velocity-CTD @ libdeflate`.
   the shipped wording, preserving every value exactly. This is the one documented exception to the
   otherwise append-only, byte-for-byte-preserving contract. Covered by a new regression test.
 
+### Fixed — F3 server brand stuck across seamless switch
+
+* Since 1.20.2 the backend sends its server brand (the F3 debug-screen line, rendered as
+  `"<server>" (Conduit)`) during the configuration phase. A seamless switch absorbs that phase in
+  `SeamlessConfigSessionHandler`, which previously ignored plugin messages, so the destination brand
+  was swallowed and F3 kept showing the previous server — you could be in the hub and still see
+  `"Hardcore Waiting Room (Conduit)"`. The handler now recognises the `minecraft:brand` message,
+  rewrites it (appending the proxy brand, exactly as `BackendPlaySessionHandler` does in Play) and
+  forwards it to the client, which is still in Play. Other config-phase plugin messages remain
+  dropped during a seamless switch.
+
 ### Fixed — stale title stuck across seamless switch
 
 * A same-dimension seamless switch keeps the client in Play and never ran the post-JoinGame title
