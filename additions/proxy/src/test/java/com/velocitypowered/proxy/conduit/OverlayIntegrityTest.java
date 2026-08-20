@@ -50,7 +50,7 @@ class OverlayIntegrityTest {
     assertTrue(source.contains("EntityEventPacket.clearOperator"));
     assertTrue(source.contains("isPlayStaySwitch"));
     assertTrue(source.contains("stripPreviousServerHud"));
-    assertTrue(source.contains("EntityMetadataPacket.resetBreathAndSwim"));
+    assertTrue(source.contains("EntityMetadataPacket.resetPlayerState"));
     assertTrue(source.contains("EVENT_RAIN_LEVEL_CHANGE"));
     assertTrue(source.contains("EVENT_THUNDER_LEVEL_CHANGE"));
     assertTrue(source.contains("dimensionKey"));

@@ -91,26 +91,91 @@ class GameEventPacketTest {
   }
 
   @Test
-  void resetBreathAndSwimWritesAirAndFlags() {
-    EntityMetadataPacket packet = EntityMetadataPacket.resetBreathAndSwim(12);
-    ByteBuf buf = Unpooled.buffer();
-    packet.encode(buf, ProtocolUtils.Direction.CLIENTBOUND, ProtocolVersion.MINECRAFT_1_20_2);
+  void resetPlayerStateClearsEveryVisualOnLegacyEffectColour() {
+    ByteBuf buf = encodeReset(ProtocolVersion.MINECRAFT_1_20_2);
 
-    EntityMetadataPacket decoded = new EntityMetadataPacket();
-    decoded.decode(buf, ProtocolUtils.Direction.CLIENTBOUND, ProtocolVersion.MINECRAFT_1_20_2);
+    assertEquals(12, ProtocolUtils.readVarInt(buf));
+    assertEntry(buf, 0, 0);
+    assertEquals(0, buf.readByte());
+    assertEntry(buf, 1, 1);
+    assertEquals(300, ProtocolUtils.readVarInt(buf));
+    assertEntry(buf, 6, 20);
+    assertEquals(0, ProtocolUtils.readVarInt(buf));
+    assertEntry(buf, 7, 1);
+    assertEquals(0, ProtocolUtils.readVarInt(buf));
+    assertEntry(buf, 8, 0);
+    assertEquals(0, buf.readByte());
+    // Before 1.20.5 the effect particles field is the potion colour.
+    assertEntry(buf, 10, 1);
+    assertEquals(0, ProtocolUtils.readVarInt(buf));
+    assertEntry(buf, 11, 8);
+    assertEquals(false, buf.readBoolean());
+    assertEntry(buf, 12, 1);
+    assertEquals(0, ProtocolUtils.readVarInt(buf));
+    assertEntry(buf, 13, 1);
+    assertEquals(0, ProtocolUtils.readVarInt(buf));
+    assertEntry(buf, 14, 11);
+    assertEquals(false, buf.readBoolean());
+    assertEquals(0xFF, buf.readUnsignedByte());
+    assertEquals(0, buf.readableBytes());
     buf.release();
+  }
 
-    assertEquals(12, decoded.getEntityId());
-    ByteBuf extra = Unpooled.buffer();
-    decoded.encode(extra, ProtocolUtils.Direction.CLIENTBOUND, ProtocolVersion.MINECRAFT_1_20_2);
-    assertEquals(12, ProtocolUtils.readVarInt(extra));
-    assertEquals(0, extra.readUnsignedByte());
-    assertEquals(0, ProtocolUtils.readVarInt(extra));
-    assertEquals(0, extra.readByte());
-    assertEquals(1, extra.readUnsignedByte());
-    assertEquals(1, ProtocolUtils.readVarInt(extra));
-    assertEquals(300, ProtocolUtils.readVarInt(extra));
-    assertEquals(0xFF, extra.readUnsignedByte());
-    extra.release();
+  @Test
+  void resetPlayerStateUsesParticleListSerializerFrom1205() {
+    ByteBuf buf = encodeReset(ProtocolVersion.MINECRAFT_1_21_5);
+
+    ProtocolUtils.readVarInt(buf);
+    skipEntries(buf, 4);
+    assertEntry(buf, 8, 0);
+    assertEquals(0, buf.readByte());
+    assertEntry(buf, 10, 18);
+    assertEquals(0, ProtocolUtils.readVarInt(buf));
+    buf.release();
+  }
+
+  @Test
+  void resetPlayerStateFollowsSerializerShiftIn1219() {
+    ByteBuf buf = encodeReset(ProtocolVersion.MINECRAFT_1_21_9);
+
+    ProtocolUtils.readVarInt(buf);
+    assertEntry(buf, 0, 0);
+    assertEquals(0, buf.readByte());
+    assertEntry(buf, 1, 1);
+    assertEquals(300, ProtocolUtils.readVarInt(buf));
+    assertEntry(buf, 6, 20);
+    assertEquals(0, ProtocolUtils.readVarInt(buf));
+    skipEntries(buf, 2);
+    assertEntry(buf, 10, 17);
+    assertEquals(0, ProtocolUtils.readVarInt(buf));
+    buf.release();
+  }
+
+  private static ByteBuf encodeReset(ProtocolVersion version) {
+    ByteBuf buf = Unpooled.buffer();
+    EntityMetadataPacket.resetPlayerState(12, version)
+        .encode(buf, ProtocolUtils.Direction.CLIENTBOUND, version);
+    return buf;
+  }
+
+  private static void assertEntry(ByteBuf buf, int index, int serializer) {
+    assertEquals(index, buf.readUnsignedByte());
+    assertEquals(serializer, ProtocolUtils.readVarInt(buf));
+  }
+
+  /**
+   * Skips whole entries whose value is a single byte or a VarInt, which covers every entry this test
+   * does not assert on directly.
+   */
+  private static void skipEntries(ByteBuf buf, int count) {
+    for (int i = 0; i < count; i++) {
+      buf.readUnsignedByte();
+      int serializer = ProtocolUtils.readVarInt(buf);
+      if (serializer == 0) {
+        buf.readByte();
+      } else {
+        ProtocolUtils.readVarInt(buf);
+      }
+    }
   }
 }

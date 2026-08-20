@@ -53,6 +53,7 @@ import com.velocitypowered.proxy.protocol.packet.ClientSettingsPacket;
 import com.velocitypowered.proxy.protocol.packet.ClientboundSoundEntityPacket;
 import com.velocitypowered.proxy.protocol.packet.EntityEventPacket;
 import com.velocitypowered.proxy.protocol.packet.EntityMetadataPacket;
+import com.velocitypowered.proxy.protocol.packet.EntityVelocityPacket;
 import com.velocitypowered.proxy.protocol.packet.GameEventPacket;
 import com.velocitypowered.proxy.protocol.packet.HeaderAndFooterPacket;
 import com.velocitypowered.proxy.protocol.packet.JoinGamePacket;
@@ -931,7 +932,12 @@ public class ClientPlaySessionHandler implements MinecraftSessionHandler {
     clearServerBossBars();
     if (clientEntityId != null) {
       player.getConnection().delayedWrite(EntityEventPacket.clearOperator(clientEntityId));
-      player.getConnection().delayedWrite(EntityMetadataPacket.resetBreathAndSwim(clientEntityId));
+      player.getConnection().delayedWrite(
+          EntityMetadataPacket.resetPlayerState(clientEntityId, player.getProtocolVersion()));
+      if (player.getProtocolVersion().lessThan(ProtocolVersion.MINECRAFT_1_21_2)) {
+        // From 1.21.2 the destination's spawn teleport carries the velocity and resets it itself.
+        player.getConnection().delayedWrite(EntityVelocityPacket.stop(clientEntityId));
+      }
     }
     clearPlayerEffects();
     if (player.getProtocolVersion().noLessThan(ProtocolVersion.MINECRAFT_1_8)) {

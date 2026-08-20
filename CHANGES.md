@@ -4,6 +4,31 @@ All changes relative to upstream `GemstoneGG/Velocity-CTD @ libdeflate`.
 
 ---
 
+## 1.7.3 — Seamless switch entity state isolation
+
+### Fixed — the player's own entity kept the previous server's visuals
+
+* A seamless switch keeps the client's player entity alive, so everything driven by entity metadata
+  was inherited from the server the player left. `EntityMetadataPacket.resetBreathAndSwim` only reset
+  the entity flags and air, leaving arrows and bee stingers stuck in the player, potion particles,
+  the powder-snow freeze overlay, an item-use or riptide animation, and a crawling, swimming, or
+  sleeping pose. A destination server only sends metadata that differs from its own idea of a freshly
+  joined player, so none of it was ever corrected.
+* Replaced by `EntityMetadataPacket.resetPlayerState(entityId, version)`, which resets every
+  `Entity` and `LivingEntity` field that drives a client-visible visual: flags (fire, sneaking,
+  sprinting, swimming, invisibility, glowing, elytra), air ticks, pose, powder-snow freeze ticks,
+  hand states, effect particles, effect ambience, arrow count, bee stinger count, and sleeping
+  position.
+* Indices 0–14 have been stable since 1.17, but the serializer ids have not: the particle-list
+  serializer arrived in 1.20.5 and the compound-tag serializer was removed in 1.21.9, shifting the
+  ids after it. The pose and particle-list serializers are therefore resolved per protocol version,
+  and only the head of the serializer registry (byte, VarInt, boolean, optional position), which has
+  never moved, is otherwise used.
+* Momentum is dropped with `EntityVelocityPacket.stop` on clients before 1.21.2. From 1.21.2 the
+  destination's spawn teleport carries velocity and resets it on its own.
+
+---
+
 ## 1.7.2 — Seamless switch state leaks
 
 ### Fixed — weather followed the player across a seamless switch
