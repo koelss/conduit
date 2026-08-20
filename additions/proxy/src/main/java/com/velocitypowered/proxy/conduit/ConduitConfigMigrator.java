@@ -59,9 +59,14 @@ import org.apache.logging.log4j.Logger;
  *   <li><b>Renames</b> declared in {@link #RENAMES} carry the operator's value from the old key to
  *       the new one and drop the old line, so a moved option migrates instead of silently
  *       reverting to its default.</li>
+ *   <li><b>Comment refresh</b> for the tightly-scoped {@link #COMMENT_REFRESH_KEYS} allowlist is the
+ *       one exception to "never rewritten": the {@code #} comment lines above those specific keys are
+ *       re-synced to the shipped wording. The key's <em>value</em> is still preserved exactly, and no
+ *       other key is touched.</li>
  * </ul>
  *
- * <p>If nothing is missing the file is not touched at all (its modification time is preserved). The
+ * <p>If nothing is missing (and no scoped comment needs re-syncing) the file is not touched at all
+ * (its modification time is preserved). The
  * update is best-effort: on any error the file is left exactly as-is and startup continues against
  * whatever is on disk.
  */
@@ -82,6 +87,23 @@ final class ConduitConfigMigrator {
    * future structural changes so a moved option migrates cleanly instead of silently resetting.
    */
   private static final Map<String, String> RENAMES = new LinkedHashMap<>();
+
+  /**
+   * Dotted {@code section.key} entries whose <em>comment block</em> (the contiguous {@code #} lines
+   * directly above the key) is refreshed in place to match the shipped defaults, while the
+   * operator's value line is preserved exactly.
+   *
+   * <p>This is a deliberate, tightly-scoped exception to the otherwise append-only contract: it lets
+   * a documentation-only rewording of a shipped option reach existing files without ever touching a
+   * value or any key outside this list. If the on-disk comments already match, nothing is written.
+   */
+  private static final List<String> COMMENT_REFRESH_KEYS = List.of(
+      "advanced.seamless-server-switches",
+      "advanced.seamless-switch-settle-ms",
+      "advanced.seamless-switch-sound-enabled",
+      "advanced.seamless-switch-sound",
+      "advanced.seamless-switch-sound-volume",
+      "advanced.seamless-switch-sound-pitch");
 
   private ConduitConfigMigrator() {
   }
@@ -113,8 +135,10 @@ final class ConduitConfigMigrator {
       List<String> renamed = applyRenames(lines, user, shipped);
       List<String> added = new ArrayList<>();
       fillMissing(lines, user, defaults, shipped, added);
+      List<String> refreshed = new ArrayList<>();
+      refreshComments(lines, user, shipped, refreshed);
 
-      if (added.isEmpty() && renamed.isEmpty()) {
+      if (added.isEmpty() && renamed.isEmpty() && refreshed.isEmpty()) {
         // Nothing to do — leave the file byte-for-byte untouched.
         return;
       }
@@ -127,6 +151,10 @@ final class ConduitConfigMigrator {
       if (!added.isEmpty()) {
         logger.info("[Conduit] conduit.toml: added {} new option(s) with defaults: {}",
             added.size(), String.join(", ", added));
+      }
+      if (!refreshed.isEmpty()) {
+        logger.info("[Conduit] conduit.toml: refreshed comments for {} option(s): {}",
+            refreshed.size(), String.join(", ", refreshed));
       }
     } catch (RuntimeException | IOException e) {
       logger.warn("[Conduit] Could not auto-update conduit.toml ({}); "
@@ -183,6 +211,87 @@ final class ConduitConfigMigrator {
         }
       }
     }
+  }
+
+  /**
+   * Refreshes the comment block above each {@link #COMMENT_REFRESH_KEYS} entry the operator has, so
+   * a reworded shipped comment reaches existing files. The key's value line is never touched, and a
+   * block that already matches the shipped comments is left as-is. Records each refreshed
+   * {@code section.key}.
+   */
+  private static void refreshComments(List<String> lines, CommentedConfig user, Defaults shipped,
+      List<String> refreshed) {
+    for (String dotted : COMMENT_REFRESH_KEYS) {
+      String[] parts = dotted.split("\\.", 2);
+      if (parts.length != 2) {
+        continue;
+      }
+      String section = parts[0];
+      String key = parts[1];
+      if (!user.contains(List.of(section, key))) {
+        continue;
+      }
+      Section shippedSection = shipped.sections.get(section);
+      if (shippedSection == null) {
+        continue;
+      }
+      List<String> shippedBlock = shippedSection.keyBlocks.get(key);
+      if (shippedBlock == null) {
+        continue;
+      }
+      // The shipped comment lines are everything above the key's own line.
+      List<String> shippedComments = new ArrayList<>();
+      for (String line : shippedBlock) {
+        if (KEY_LINE.matcher(line).matches()) {
+          break;
+        }
+        shippedComments.add(line);
+      }
+      if (replaceCommentRun(lines, section, key, shippedComments)) {
+        refreshed.add(dotted);
+      }
+    }
+  }
+
+  /**
+   * Replaces the contiguous run of {@code #} comment lines directly above {@code section.key} with
+   * {@code shippedComments}, preserving the key line. Returns whether the text changed.
+   */
+  private static boolean replaceCommentRun(List<String> lines, String section, String key,
+      List<String> shippedComments) {
+    int headerIndex = findSectionHeader(lines, section);
+    if (headerIndex < 0) {
+      return false;
+    }
+    int keyIndex = -1;
+    for (int i = headerIndex + 1; i < lines.size(); i++) {
+      if (SECTION_HEADER.matcher(lines.get(i)).matches()) {
+        break;
+      }
+      Matcher m = KEY_LINE.matcher(lines.get(i));
+      if (m.matches() && m.group(1).equals(key)) {
+        keyIndex = i;
+        break;
+      }
+    }
+    if (keyIndex < 0) {
+      return false;
+    }
+    // Walk upward over the immediately-preceding comment lines (stopping at the header, a blank
+    // line, or any non-comment line).
+    int start = keyIndex;
+    while (start - 1 > headerIndex && lines.get(start - 1).strip().startsWith("#")) {
+      start--;
+    }
+    List<String> existing = new ArrayList<>(lines.subList(start, keyIndex));
+    if (existing.equals(shippedComments)) {
+      return false;
+    }
+    for (int i = keyIndex - 1; i >= start; i--) {
+      lines.remove(i);
+    }
+    lines.addAll(start, shippedComments);
+    return true;
   }
 
   /** Appends a whole shipped section block to the end of the file, preceded by a blank line. */
