@@ -232,6 +232,42 @@ allowlist = []
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# [versions] — Advertised / accepted Minecraft client versions
+# ─────────────────────────────────────────────────────────────────────────────
+# Restrict which Minecraft versions may join the network, and advertise that
+# range in the server list.
+#
+# Clients inside the range see the network exactly as before: your normal MOTD,
+# the ping bars, and the live player count. Clients outside it get the vanilla
+# "incompatible version" server-list entry — a red cross instead of the ping
+# bars, with `ping-version-name` shown where the player count would be — and are
+# told which versions to use if they try to connect.
+[versions]
+
+# Master switch. When false (the default) nothing is restricted and every
+# version this proxy build supports may join.
+enabled = false
+
+# Lowest and highest Minecraft version accepted, inclusive. Set both to the same
+# value to pin one exact version. Accepts a version name ("1.21.11") or a raw
+# protocol number ("774"). Leave a bound blank ("") for "no limit on that end",
+# e.g. minimum = "1.21.4" with maximum = "" allows 1.21.4 and anything newer.
+minimum = "1.21.11"
+maximum = "1.21.11"
+
+# Text shown in the server-list version slot to clients outside the range. This
+# is plain text (the client renders it in red itself), not MiniMessage.
+#   {versions} — the accepted range, e.g. "1.21.11" or "1.21.4–1.21.11"
+#   {min} / {max} — the individual bounds
+ping-version-name = "Conduit {versions}"
+
+# MiniMessage disconnect message shown when someone tries to join on an
+# unsupported version. `kick-message` is used when exactly one version is
+# allowed, `kick-message-range` when a range is. Same placeholders as above.
+kick-message = "<red>This network only allows players to join on version <white>{versions}</white>."
+kick-message-range = "<red>This network only allows players to join on versions <white>{versions}</white>."
+
+# ─────────────────────────────────────────────────────────────────────────────
 # [commands] — Operator commands surfaced by Conduit
 # ─────────────────────────────────────────────────────────────────────────────
 [commands]

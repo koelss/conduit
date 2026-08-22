@@ -22,6 +22,7 @@ import com.electronwill.nightconfig.core.file.CommentedFileConfig;
 import com.velocitypowered.proxy.conduit.routing.ModCompatibilityRules;
 import com.velocitypowered.proxy.conduit.security.AttackModePolicy;
 import com.velocitypowered.proxy.conduit.security.ChannelGuardPreset;
+import com.velocitypowered.proxy.conduit.version.VersionPolicy;
 import com.velocitypowered.proxy.protocol.packet.config.KnownPacksPacket;
 import java.io.IOException;
 import java.io.InputStream;
@@ -43,6 +44,17 @@ public final class ConduitConfig {
 
   private static final Logger logger = LogManager.getLogger(ConduitConfig.class);
   public static final int DEFAULT_MAX_KNOWN_PACKS = 1024;
+
+  /** Default server-list label shown to clients outside the configured version range. */
+  static final String DEFAULT_PING_VERSION_NAME = "Conduit {versions}";
+
+  /** Default kick text when exactly one Minecraft version is allowed. */
+  static final String DEFAULT_VERSION_KICK_MESSAGE =
+      "<red>This network only allows players to join on version <white>{versions}</white>.";
+
+  /** Default kick text when a range of Minecraft versions is allowed. */
+  static final String DEFAULT_VERSION_KICK_MESSAGE_RANGE =
+      "<red>This network only allows players to join on versions <white>{versions}</white>.";
 
   // ── Modded section ────────────────────────────────────────────────────────
   private final int maxKnownPacks;
@@ -109,6 +121,9 @@ public final class ConduitConfig {
   private final String maintenanceKickMessage;
   private final String maintenanceMotd;
   private final List<String> maintenanceAllowlist;
+
+  // ── Versions section ──────────────────────────────────────────────────────
+  private final VersionPolicy versionPolicy;
 
   // ── Commands section ──────────────────────────────────────────────────────
   private final boolean adminCommandsEnabled;
@@ -200,6 +215,8 @@ public final class ConduitConfig {
     this.maintenanceKickMessage = b.maintenanceKickMessage;
     this.maintenanceMotd = b.maintenanceMotd;
     this.maintenanceAllowlist = b.maintenanceAllowlist;
+
+    this.versionPolicy = b.versionPolicy;
 
     this.adminCommandsEnabled = b.adminCommandsEnabled;
     this.modListCommandEnabled = b.modListCommandEnabled;
@@ -362,6 +379,19 @@ public final class ConduitConfig {
       b.maintenanceAllowlist = maintenance.getOrElse("allowlist", Collections.emptyList());
     }
 
+    CommentedConfig versions = toml.get("versions");
+    if (versions != null) {
+      b.versionPolicy = new VersionPolicy(
+          versions.getOrElse("enabled", false),
+          VersionPolicy.parseVersion("versions.minimum",
+              asVersionString(versions.get("minimum"))),
+          VersionPolicy.parseVersion("versions.maximum",
+              asVersionString(versions.get("maximum"))),
+          versions.getOrElse("ping-version-name", DEFAULT_PING_VERSION_NAME),
+          versions.getOrElse("kick-message", DEFAULT_VERSION_KICK_MESSAGE),
+          versions.getOrElse("kick-message-range", DEFAULT_VERSION_KICK_MESSAGE_RANGE));
+    }
+
     CommentedConfig commands = toml.get("commands");
     if (commands != null) {
       b.adminCommandsEnabled = commands.getOrElse("admin-enabled", true);
@@ -436,6 +466,16 @@ public final class ConduitConfig {
     return new ConduitConfig(b);
   }
 
+  /**
+   * Renders a configured version bound as a string.
+   *
+   * <p>TOML types both {@code minimum = "774"} and {@code minimum = 774}; operators reach for
+   * either when pinning by protocol number, so accept both rather than failing with a cast error.
+   */
+  private static String asVersionString(Object value) {
+    return value == null ? "" : String.valueOf(value);
+  }
+
   /** Throws {@link IllegalArgumentException} on out-of-range numeric values. */
   private static void validate(Builder b) {
     requirePositive("max-known-packs", b.maxKnownPacks);
@@ -479,6 +519,12 @@ public final class ConduitConfig {
         throw new IllegalArgumentException("conduit.toml: forwarding.channel must be of the form"
             + " 'namespace:path' — got '" + channel + "'");
       }
+    }
+    if (b.versionPolicy.getMinimum() != null && b.versionPolicy.getMaximum() != null
+        && b.versionPolicy.getMinimum().greaterThan(b.versionPolicy.getMaximum())) {
+      throw new IllegalArgumentException("conduit.toml: versions.minimum ("
+          + b.versionPolicy.getMinimum().getVersionIntroducedIn() + ") must be <= versions.maximum ("
+          + b.versionPolicy.getMaximum().getMostRecentSupportedVersion() + ")");
     }
     String action = b.channelGuardAction;
     if (action == null
@@ -759,6 +805,17 @@ public final class ConduitConfig {
     return metricsHttpPath;
   }
 
+  // ── Versions getters ──────────────────────────────────────────────────────
+
+  /**
+   * Returns the advertised/accepted client-version policy from the {@code [versions]} section.
+   *
+   * <p>Never {@code null}; {@link VersionPolicy#DISABLED} when no restriction is configured.
+   */
+  public VersionPolicy getVersionPolicy() {
+    return versionPolicy;
+  }
+
   // ── Maintenance getters ───────────────────────────────────────────────────
 
   /** Returns whether the maintenance-mode subsystem is enabled (registers its listeners). */
@@ -985,6 +1042,8 @@ public final class ConduitConfig {
     String maintenanceMotd =
         "<red><bold>⚠ Maintenance</bold></red>\n<gray>The network is temporarily offline.";
     List<String> maintenanceAllowlist = Collections.emptyList();
+
+    VersionPolicy versionPolicy = VersionPolicy.DISABLED;
 
     boolean adminCommandsEnabled = true;
     boolean modListCommandEnabled = true;

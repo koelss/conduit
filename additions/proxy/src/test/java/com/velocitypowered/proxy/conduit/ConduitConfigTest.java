@@ -46,6 +46,60 @@ class ConduitConfigTest {
   }
 
   @Test
+  void loadsPinnedVersionRange() throws Exception {
+    Files.writeString(tempDir.resolve("conduit.toml"),
+        """
+        [versions]
+        enabled = true
+        minimum = "1.21.11"
+        maximum = "1.21.11"
+        """);
+
+    ConduitConfig config = ConduitConfig.load(tempDir);
+
+    assertTrue(config.getVersionPolicy().isEnabled());
+    assertTrue(config.getVersionPolicy().isSingleVersion());
+    assertEquals("1.21.11", config.getVersionPolicy().getVersionsLabel());
+    assertEquals("Conduit 1.21.11", config.getVersionPolicy().pingVersionName());
+  }
+
+  @Test
+  void versionRangeIsUnrestrictedByDefault() throws Exception {
+    Files.writeString(tempDir.resolve("conduit.toml"),
+        """
+        [modded]
+        max-known-packs = 2048
+        """);
+
+    assertFalse(ConduitConfig.load(tempDir).getVersionPolicy().isEnabled());
+  }
+
+  @Test
+  void rejectsUnknownConfiguredVersion() throws Exception {
+    Files.writeString(tempDir.resolve("conduit.toml"),
+        """
+        [versions]
+        enabled = true
+        minimum = "1.99"
+        """);
+
+    assertThrows(IllegalArgumentException.class, () -> ConduitConfig.load(tempDir));
+  }
+
+  @Test
+  void rejectsInvertedVersionRange() throws Exception {
+    Files.writeString(tempDir.resolve("conduit.toml"),
+        """
+        [versions]
+        enabled = true
+        minimum = "1.21.11"
+        maximum = "1.21.4"
+        """);
+
+    assertThrows(IllegalArgumentException.class, () -> ConduitConfig.load(tempDir));
+  }
+
+  @Test
   void rejectsInvalidChannelGuardAction() throws Exception {
     Files.writeString(tempDir.resolve("conduit.toml"),
         """

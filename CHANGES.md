@@ -4,6 +4,35 @@ All changes relative to upstream `GemstoneGG/Velocity-CTD @ libdeflate`.
 
 ---
 
+## Unreleased — Configurable supported Minecraft versions
+
+### Added — `[versions]` section in `conduit.toml`
+
+* Operators can pin which Minecraft versions the network accepts and advertises, with
+  `minimum`/`maximum` given either as version names (`"1.21.11"`) or raw protocol numbers
+  (`"774"`). Leaving a bound blank makes that end open, and setting both to the same value pins one
+  exact version. Off by default — nothing changes until `enabled = true`.
+* `VersionGate` rewrites the server-list ping for clients outside the range: the advertised
+  `version.protocol` is deliberately one the client cannot be speaking, which is the vanilla
+  "incompatible" signal, and `version.name` carries the configured label (`Conduit 1.21.11` by
+  default). The entry therefore states which versions the network runs rather than implying it is
+  offline. Clients inside the range are untouched and still see the normal MOTD, ping bars, and
+  player count.
+* The rewrite runs at `PostOrder.LAST`, after `MotdCache` stores the response at `PostOrder.LATE`,
+  so the per-IP cache only ever holds the unmodified MOTD and two clients on different versions
+  behind one address each get the right answer.
+* A join attempt from outside the range is denied at `PreLoginEvent` — before authentication — with
+  a MiniMessage message that names the accepted versions: "This network only allows players to join
+  on version 1.21.11." for a pinned version, and the plural "…on versions 1.21.4–1.21.11." for a
+  range. Both are configurable (`kick-message`, `kick-message-range`), with `{versions}`, `{min}`,
+  and `{max}` placeholders.
+* Unknown version names and inverted ranges are rejected at config load with an explanatory error.
+  Protocols the proxy itself does not support are left to Velocity's own handling, so the setting
+  can only ever narrow the supported set.
+* The range is live-reloadable via `/conduit reload` and appears in `/conduit config diff`.
+
+---
+
 ## 1.7.3 — Seamless switch entity state isolation
 
 ### Fixed — the player's own entity kept the previous server's visuals
