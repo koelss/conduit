@@ -110,6 +110,7 @@ import com.velocitypowered.proxy.protocol.packet.StatusResponsePacket;
 import com.velocitypowered.proxy.protocol.packet.TabCompleteRequestPacket;
 import com.velocitypowered.proxy.protocol.packet.TabCompleteResponsePacket;
 import com.velocitypowered.proxy.protocol.packet.TransferPacket;
+import com.velocitypowered.proxy.protocol.packet.UpdateAttributesPacket;
 import com.velocitypowered.proxy.protocol.packet.UpsertPlayerInfoPacket;
 import com.velocitypowered.proxy.protocol.packet.chat.ChatAcknowledgementPacket;
 import com.velocitypowered.proxy.protocol.packet.chat.PlayerChatCompletionPacket;
@@ -695,6 +696,14 @@ public enum StateRegistry {
           map(0x66, MINECRAFT_1_21_5, false),
           map(0x6B, MINECRAFT_1_21_9, false),
           map(0x6D, MINECRAFT_26_1, false));
+      clientbound.register(
+          UpdateAttributesPacket.class, UpdateAttributesPacket::new,
+          map(0x6D, MINECRAFT_1_20_2, false),
+          map(0x71, MINECRAFT_1_20_3, false),
+          map(0x75, MINECRAFT_1_20_5, false),
+          map(0x7C, MINECRAFT_1_21_2, false),
+          map(0x81, MINECRAFT_1_21_9, false),
+          map(0x83, MINECRAFT_26_1, false));
       clientbound.register(
           EntityEffectPacket.class, EntityEffectPacket::new,
           map(0x6E, MINECRAFT_1_20_2, false),

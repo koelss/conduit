@@ -4,6 +4,32 @@ All changes relative to upstream `GemstoneGG/Velocity-CTD @ libdeflate`.
 
 ---
 
+## 1.7.5 — Seamless switch attribute isolation
+
+### Fixed — creative mode reach followed the player into a survival server
+
+* From 1.20.5 the extended reach of creative mode is not a client-side property of the game mode:
+  the server adds `player.block_interaction_range` and `player.entity_interaction_range` modifiers
+  to the player's attributes and syncs them to the client. The client keeps those modifiers until a
+  server replaces the attribute, and a server only sends the attributes that differ from its own
+  idea of a freshly joined player — a survival destination has nothing to send for interaction
+  range. Logging in on a creative server and then switching seamlessly into a survival one
+  therefore kept creative reach. It only cleared when a later switch happened to take the
+  non-seamless path, which makes the client build a fresh player and with it a fresh set of
+  attributes; that is why hopping to a third server and back "fixed" it.
+* New `UpdateAttributesPacket` (clientbound update attributes, ids `0x6D`/`0x71`/`0x75`/`0x7C`/
+  `0x81`/`0x83` from 1.20.2, 1.20.3, 1.20.5, 1.21.2, 1.21.9, and 26.1). `BackendPlaySessionHandler`
+  records the attributes a backend sends for the player's own entity, and a seamless switch replays
+  them from `stripPreviousServerHud` with their base values intact and **no** modifiers, which is
+  exactly what removes the creative range bonus. The destination's own attributes arrive right
+  after the switch and override the replay.
+* The properties section is forwarded as raw bytes and parsed only on a best-effort basis: an
+  attribute layout the proxy does not understand leaves the snapshot empty instead of dropping the
+  connection. The attribute key is a VarInt registry id from 1.20.5 and an identifier string before
+  that; modifier ids are namespaced identifiers from 1.21 and UUIDs before that.
+
+---
+
 ## 1.7.4 — Configurable supported Minecraft versions
 
 ### Added — `[versions]` section in `conduit.toml`
