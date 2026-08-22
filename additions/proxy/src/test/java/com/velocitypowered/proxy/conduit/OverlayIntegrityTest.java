@@ -51,6 +51,8 @@ class OverlayIntegrityTest {
     assertTrue(source.contains("isPlayStaySwitch"));
     assertTrue(source.contains("stripPreviousServerHud"));
     assertTrue(source.contains("EntityMetadataPacket.resetPlayerState"));
+    assertTrue(source.contains("resetPlayerAttributes"));
+    assertTrue(source.contains("trackedPlayerAttributes"));
     assertTrue(source.contains("EVENT_RAIN_LEVEL_CHANGE"));
     assertTrue(source.contains("EVENT_THUNDER_LEVEL_CHANGE"));
     assertTrue(source.contains("dimensionKey"));
@@ -66,6 +68,7 @@ class OverlayIntegrityTest {
     assertTrue(source.contains("EVENT_START_WAITING_FOR_CHUNKS"));
     assertTrue(source.contains("ClientboundSoundEntityPacket"));
     assertTrue(source.contains("EntityIdPayloadPacket"));
+    assertTrue(source.contains("UpdateAttributesPacket"));
   }
 
   @Test

@@ -70,6 +70,8 @@ import com.velocitypowered.proxy.protocol.packet.ServerboundPlayerLoadedPacket;
 import com.velocitypowered.proxy.protocol.packet.TabCompleteRequestPacket;
 import com.velocitypowered.proxy.protocol.packet.TabCompleteResponsePacket;
 import com.velocitypowered.proxy.protocol.packet.TabCompleteResponsePacket.Offer;
+import com.velocitypowered.proxy.protocol.packet.UpdateAttributesPacket;
+import com.velocitypowered.proxy.protocol.packet.UpdateAttributesPacket.AttributeSnapshot;
 import com.velocitypowered.proxy.protocol.packet.chat.ChatAcknowledgementPacket;
 import com.velocitypowered.proxy.protocol.packet.chat.ChatHandler;
 import com.velocitypowered.proxy.protocol.packet.chat.ChatTimeKeeper;
@@ -100,6 +102,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
 import java.util.UUID;
@@ -173,6 +176,8 @@ public class ClientPlaySessionHandler implements MinecraftSessionHandler {
   private final Set<String> trackedScoreboardObjectives = ConcurrentHashMap.newKeySet();
   private final Set<String> trackedScoreboardTeams = ConcurrentHashMap.newKeySet();
   private final Set<Integer> trackedPlayerEffects = ConcurrentHashMap.newKeySet();
+  private final Map<String, AttributeSnapshot> trackedPlayerAttributes =
+      new ConcurrentHashMap<>();
   private @Nullable String currentDimension;
   private @Nullable Integer clientEntityId;
   private boolean seamlessPlayActive;
@@ -722,6 +727,7 @@ public class ClientPlaySessionHandler implements MinecraftSessionHandler {
       trackedScoreboardObjectives.clear();
       trackedScoreboardTeams.clear();
       trackedPlayerEffects.clear();
+      trackedPlayerAttributes.clear();
       serverBossBars.clear();
       this.clientEntityId = joinGame.getEntityId();
     }
@@ -940,6 +946,7 @@ public class ClientPlaySessionHandler implements MinecraftSessionHandler {
       }
     }
     clearPlayerEffects();
+    resetPlayerAttributes();
     if (player.getProtocolVersion().noLessThan(ProtocolVersion.MINECRAFT_1_8)) {
       player.getConnection().delayedWrite(HeaderAndFooterPacket.reset(player.getProtocolVersion()));
       player.clearPlayerListHeaderAndFooterSilent();
@@ -972,6 +979,33 @@ public class ClientPlaySessionHandler implements MinecraftSessionHandler {
       player.getConnection().delayedWrite(new RemoveEntityEffectPacket(clientEntityId, effectId));
     }
     trackedPlayerEffects.clear();
+  }
+
+  /**
+   * Returns the player's attributes to the base values the previous server last sent, dropping the
+   * modifiers that came with them.
+   *
+   * <p>From 1.20.5 the extended reach of creative mode is not a client-side property of the game
+   * mode: the server adds block and entity interaction range modifiers to the player's attributes
+   * and syncs them to the client. The client keeps those modifiers until a server replaces the
+   * attribute, and a server only sends the attributes that differ from its own idea of a freshly
+   * joined player - a survival destination has nothing to send for interaction range, so a
+   * creative-to-survival seamless switch left the player with creative reach. It only went away
+   * when a later switch happened to take the non-seamless path, which makes the client build a
+   * fresh player and with it a fresh set of attributes.
+   *
+   * <p>Only the attributes the previous server actually sent are touched, and only their modifiers
+   * are dropped: the base values are echoed back unchanged. A destination with attributes of its
+   * own sends them right after the switch, which overrides this.
+   */
+  private void resetPlayerAttributes() {
+    if (clientEntityId == null || trackedPlayerAttributes.isEmpty()) {
+      trackedPlayerAttributes.clear();
+      return;
+    }
+    player.getConnection().delayedWrite(UpdateAttributesPacket.resetModifiers(
+        clientEntityId, trackedPlayerAttributes.values()));
+    trackedPlayerAttributes.clear();
   }
 
   /**
@@ -1075,6 +1109,10 @@ public class ClientPlaySessionHandler implements MinecraftSessionHandler {
 
   public Set<Integer> getTrackedPlayerEffects() {
     return trackedPlayerEffects;
+  }
+
+  public Map<String, AttributeSnapshot> getTrackedPlayerAttributes() {
+    return trackedPlayerAttributes;
   }
 
   public @Nullable Integer getClientEntityId() {

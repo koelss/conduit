@@ -72,6 +72,7 @@ import com.velocitypowered.proxy.protocol.packet.ServerDataPacket;
 import com.velocitypowered.proxy.protocol.packet.SpawnEntityPacket;
 import com.velocitypowered.proxy.protocol.packet.TabCompleteResponsePacket;
 import com.velocitypowered.proxy.protocol.packet.TransferPacket;
+import com.velocitypowered.proxy.protocol.packet.UpdateAttributesPacket;
 import com.velocitypowered.proxy.protocol.packet.UpsertPlayerInfoPacket;
 import com.velocitypowered.proxy.protocol.packet.chat.ComponentHolder;
 import com.velocitypowered.proxy.protocol.packet.config.StartUpdatePacket;
@@ -209,6 +210,16 @@ public class BackendPlaySessionHandler implements MinecraftSessionHandler {
       playerSessionHandler.getTrackedScoreboardTeams().remove(packet.getTeamName());
     } else {
       playerSessionHandler.getTrackedScoreboardTeams().add(packet.getTeamName());
+    }
+    return false;
+  }
+
+  @Override
+  public boolean handle(UpdateAttributesPacket packet) {
+    if (rewritePlayerEntityId(packet::getEntityId, packet::setEntityId)) {
+      for (UpdateAttributesPacket.AttributeSnapshot attribute : packet.getAttributes()) {
+        playerSessionHandler.getTrackedPlayerAttributes().put(attribute.getId(), attribute);
+      }
     }
     return false;
   }

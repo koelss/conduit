@@ -1,3 +1,17 @@
+# Conduit 1.7.5
+
+## Fixed
+
+- **Creative-mode reach no longer follows you into a survival server.** Logging in on a server
+  where you are in creative and then switching seamlessly to a server where you are in survival
+  kept the extended block and entity reach, because since 1.20.5 that reach is an attribute
+  modifier the client holds on to until a server replaces the attribute — and a survival server has
+  no reason to send one. The proxy now remembers the attributes a backend gives you and replays
+  them without their modifiers as part of a seamless switch, so your reach matches the game mode of
+  the server you land on. Previously this only sorted itself out by switching servers again.
+
+---
+
 # Conduit 1.7.4
 
 ## Added
