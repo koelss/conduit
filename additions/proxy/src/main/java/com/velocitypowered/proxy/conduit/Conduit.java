@@ -45,6 +45,7 @@ import com.velocitypowered.proxy.conduit.update.GitHubReleaseProvider;
 import com.velocitypowered.proxy.conduit.update.SemanticVersion;
 import com.velocitypowered.proxy.conduit.update.UpdateChecker;
 import com.velocitypowered.proxy.conduit.update.UpdateNotifier;
+import com.velocitypowered.proxy.conduit.version.VersionGate;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Path;
@@ -81,6 +82,7 @@ public final class Conduit {
   private final ChannelGuard channelGuard;
   private final ModCompatibilityRouter modCompatibilityRouter;
   private final MaintenanceManager maintenanceManager;
+  private final VersionGate versionGate;
   private final CommandForwarder commandForwarder;
   private volatile ConduitMetricsServer metricsServer;
   private final UpdateChecker updateChecker;
@@ -134,6 +136,7 @@ public final class Conduit {
             config.getMaintenanceKickMessage(), config.getMaintenanceMotd(),
             config.getMaintenanceAllowlist())
         : MaintenanceManager.DISABLED;
+    this.versionGate = new VersionGate(config.getVersionPolicy());
     this.commandForwarder = config.isCommandForwardingEnabled()
         ? new CommandForwarder(config.getCommandForwardingChannel(),
             config.isCommandForwardingRequirePermission(), config.isCommandForwardingLog())
@@ -202,6 +205,7 @@ public final class Conduit {
     channelGuard.register(plugin, proxy);
     modCompatibilityRouter.register(plugin, proxy);
     maintenanceManager.register(plugin, proxy);
+    versionGate.register(plugin, proxy);
     commandForwarder.register(plugin, proxy);
 
     startMetricsServerIfEnabled();
@@ -300,8 +304,8 @@ public final class Conduit {
   /**
    * Reloads conduit.toml and pushes new values into the subsystems that support live tuning.
    *
-   * <p>Live-tunable: handshake cache TTL, connection throttler rate, diagnostics flags, max known
-   * packs (via {@link ConduitConfig#applyLiveValues}).
+   * <p>Live-tunable: handshake cache TTL, connection throttler rate, diagnostics flags, the
+   * advertised client-version range, max known packs (via {@link ConduitConfig#applyLiveValues}).
    *
    * <p>Restart-required: write-buffer watermarks (bound at listener bind time), backend health-check
    * interval, MOTD TTL, graceful-shutdown configuration, bot-filter thresholds, fallback-server
@@ -313,6 +317,7 @@ public final class Conduit {
     handshakeCache.setTtlSeconds(newConfig.getHandshakeCacheTtlSeconds());
     connectionThrottler.setMaxPerSecond(newConfig.getConnectionThrottleMaxPerSecond());
     diagnostics.reconfigure(newConfig);
+    versionGate.setPolicy(newConfig.getVersionPolicy());
     if (attackModeEnabled) {
       newConfig.getAttackModePolicy().apply(connectionThrottler, botFilter, motdCache);
     } else {
@@ -429,6 +434,11 @@ public final class Conduit {
     return channelGuard;
   }
 
+  /** Returns the {@link VersionGate} enforcing the advertised client-version range. */
+  public VersionGate getVersionGate() {
+    return versionGate;
+  }
+
   /** Returns the active {@link MaintenanceManager}. */
   public MaintenanceManager getMaintenanceManager() {
     return maintenanceManager;
@@ -521,6 +531,9 @@ public final class Conduit {
     logger.info("[Conduit]   maintenance             = {} (active {}, {} allow-listed)",
         config.isMaintenanceFeatureEnabled(), maintenanceManager.isActive(),
         config.getMaintenanceAllowlist().size());
+    logger.info("[Conduit]   versions                = {} (allowing {})",
+        config.getVersionPolicy().isEnabled() ? "restricted" : "unrestricted",
+        config.getVersionPolicy().getVersionsLabel());
     logger.info("[Conduit]   admin-commands          = {}", config.isAdminCommandsEnabled());
     logger.info("[Conduit]   modlist-command         = {}", config.isModListCommandEnabled());
     logger.info("[Conduit]   update-check            = {} (repo {}, notify-join {})",

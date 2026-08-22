@@ -55,6 +55,10 @@ public final class ConduitConfigDiff {
         false);
     diff.add("routing.mod-compatibility", before.getModCompatibilityRules(),
         after.getModCompatibilityRules(), false);
+    diff.add("versions", before.getVersionPolicy().getVersionsLabel(),
+        after.getVersionPolicy().getVersionsLabel(), true);
+    diff.add("versions.enabled", before.getVersionPolicy().isEnabled(),
+        after.getVersionPolicy().isEnabled(), true);
     diff.add("advanced.seamless-server-switches", before.isSeamlessServerSwitches(),
         after.isSeamlessServerSwitches(), true);
     diff.add("advanced.seamless-switch-settle-ms", before.getSeamlessSwitchSettleMs(),
