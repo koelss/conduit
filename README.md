@@ -1,48 +1,94 @@
 # Conduit
 
-> A performance-focused, modded-network-ready fork of [Velocity-CTD](https://github.com/GemstoneGG/Velocity-CTD).
+> Velocity, with the plugins built in — a fork of [Velocity-CTD](https://github.com/GemstoneGG/Velocity-CTD) for people who run networks.
 
-Conduit is built directly on Velocity-CTD `libdeflate` and layers Conduit’s modded-network
-optimizations on top of CTD’s Redis, queue, command, and LuckPerms integration work. It remains
-compatible with existing Velocity plugins and targets Paper, Spigot, Fabric, Forge, and NeoForge
-backends.
+Conduit folds the proxy-side plugin stack into the proxy itself. Maintenance mode, version gating,
+anti-bot and cheat-channel filtering, backend health checks and fallback routing, permissions, and
+profiling all ship in the jar and are configured from one file. Modded-client support — the
+known-packs limit, handshake caching, NeoForge and Forge handling — is a first-class part of that,
+not the whole of it.
+
+It is built directly on Velocity-CTD `libdeflate`, keeps CTD's Redis, queue, command, and LuckPerms
+integration work, stays compatible with existing Velocity plugins and your existing `velocity.toml`,
+and targets Paper, Spigot, Fabric, Forge, and NeoForge backends.
 
 **[Download the latest release →](https://github.com/tame-gg/conduit/releases/latest)**
 
 ---
 
+## What it replaces
+
+| Instead of | Conduit gives you |
+|------------|-------------------|
+| [KnownPacksFix](https://github.com/koels/knownpacksfix) | `[modded] max-known-packs` — no reflection, no `sun.misc.Unsafe` |
+| A Maintenance plugin | `[maintenance]` + `/conduit maintenance on\|off\|status`, state persisted across restarts |
+| The proxy half of [VelocityCommandForward](https://github.com/ItsTauTvyDas/VelocityCommandForward) | `[forwarding]` — same wire protocol, keep only the backend plugin |
+| Downloading LuckPerms | Bundled and installed on first run (`[luckperms]`) |
+| Downloading spark | Bundled and installed on first run (`[spark]`) |
+
+Both bundled jars step aside if you already manage your own copy, and either can be switched off.
+`conduit.toml` tops itself up on every upgrade, so new options arrive with their documented defaults
+and your values are never clobbered.
+
+---
+
 ## Key features
+
+### Modded
+
+The parts Velocity gets wrong for modpacks.
 
 | Feature | Description |
 |---------|-------------|
 | **Configurable known-packs limit** | Raises the max-known-packs cap via `conduit.toml`. Default 1 024 vs Velocity's 64 — no reflection hacks. Replaces the KnownPacksFix plugin. |
 | **Modded handshake cache** | Caches negotiated pack lists so returning modded clients skip the handshake round-trip. |
 | **NeoForge / Forge compat** | Better payload validation, channel detection, and address-marker stripping for FML1/FML2/FML3 clients. |
-| **Smart compression** | Entropy-based pre-flight compression path avoids unsafe raw above-threshold packets and falls back to vanilla compression when needed. |
-| **Configurable write-buffer watermarks** | Tune Netty's backpressure per-deployment in `conduit.toml` instead of recompiling. |
-| **Increased SO_BACKLOG** | Raised from 128 → 1 024 to handle burst logins on large networks. |
-| **Per-IP connection throttle** | Drops TCP connections at the Netty accept stage before any packet data is read, protecting against bot floods. |
+| **Mod compatibility routing** | Optional per-backend allow rules for Vanilla, Fabric, Forge, NeoForge, and unknown modded clients. |
 | **Packet queue manager** | Holds in-flight packets during server switches, preventing state-machine confusion on modded clients. |
-| **Backend health checking** | Pings all registered backends on a configurable interval and marks unhealthy servers so they are skipped by fallback routing. |
-| **Fallback routing on kick** | Automatically redirects kicked players to a healthy fallback server instead of disconnecting them. |
-| **MOTD caching** | Caches server list pings per IP to reduce repeated ping overhead. |
-| **Graceful shutdown** | Transfers connected players to a fallback server (or disconnects with a friendly message) before the proxy exits. |
+
+### Security
+
+Floods, cheats, and the connections you never see.
+
+| Feature | Description |
+|---------|-------------|
+| **Per-IP connection throttle** | Drops TCP connections at the Netty accept stage before any packet data is read, protecting against bot floods. |
 | **Bot filter** | Blocks IPs that repeatedly open TCP channels without completing the initial Minecraft handshake. |
 | **Channel guard** | Intercepts known cheat / exploit plugin-message channels (World-Downloader, X-Ray clients) and applies a drop / kick / log policy. |
 | **Attack mode** | `/conduit attackmode on/off/status` applies stricter live flood-mitigation limits without editing config. |
+
+### Operations
+
+Running the network, not just booting it.
+
+| Feature | Description |
+|---------|-------------|
 | **Maintenance mode** | `/conduit maintenance on/off/status` closes the network to non-exempt players with a custom kick message and maintenance MOTD. Bypass via permission or username allow-list; state survives restarts. Replaces standalone Maintenance plugins. |
 | **Version gate** | Pin the Minecraft versions your network accepts via `conduit.toml → [versions]` — a contiguous range, or an explicit list of individual versions for a set with gaps in it. Accepted clients see the normal MOTD, ping, and player count; others get the vanilla "incompatible version" server-list entry labelled with your supported versions, and a join attempt is refused with a message naming them. |
-| **Mod compatibility routing** | Optional per-backend allow rules for Vanilla, Fabric, Forge, NeoForge, and unknown modded clients. |
-| **Tab-complete cache** | Short-TTL LRU cache for backend tab-completion responses keyed on (server, prefix). Absorbs key-held tab spam at near-zero CPU. |
-| **Metrics JSON endpoint** | Optional loopback HTTP endpoint and `/conduit metrics json` expose diagnostics counters for dashboards. |
-| **Structured diagnostics** | Optional lock-free counters and structured log output for profiling; zero overhead when disabled. |
-| **Bundled spark profiler** | Ships the official `lucko/spark` Velocity plugin and installs it as `/sparkv` / `/sparkvelocity`. Skips if an operator-managed spark jar is present, and can be disabled via `conduit.toml → [spark] → bundle-enabled`. |
-| **Native LuckPerms** | Ships the official LuckPerms Velocity plugin and installs it on first run, so permissions, groups, and prefixes work out of the box. Skips if an operator-managed LuckPerms jar is present, and can be disabled via `conduit.toml → [luckperms] → bundle-enabled`. CTD's LuckPerms permission resolver then activates automatically. |
-| **Experimental seamless switches** | Optional 1.20.2+ same-dimension server switches that skip the client configuration screen. Disabled by default (`[advanced] seamless-server-switches`). Based on the seamless server switching patch by ohemilyy. |
-| **Update checker** | Asynchronously checks GitHub Releases for a newer Conduit version, caches the result, compares semantic versions, and tells `conduit.update.notify` staff how many releases they are behind on join. Modular provider design; configurable via `conduit.toml → [update]`. |
+| **Backend health checking** | Pings all registered backends on a configurable interval and marks unhealthy servers so they are skipped by fallback routing. |
+| **Fallback routing on kick** | Automatically redirects kicked players to a healthy fallback server instead of disconnecting them. |
+| **Graceful shutdown** | Transfers connected players to a fallback server (or disconnects with a friendly message) before the proxy exits. |
 | **Command forwarding** | Optional backend→proxy command execution over plugin messaging, wire-compatible with the VelocityCommandForward plugin. A backend's `/proxyexec <cmd>` runs on the proxy as console or the forwarding player. Off by default; enable via `conduit.toml → [forwarding] → command-forwarding`. Replaces the proxy-side VelocityCommandForward plugin. |
+| **Update checker** | Asynchronously checks GitHub Releases for a newer Conduit version, caches the result, compares semantic versions, and tells `conduit.update.notify` staff how many releases they are behind on join. Modular provider design; configurable via `conduit.toml → [update]`. |
 | **Self-updating config** | `conduit.toml` is topped up on every start: options added in newer Conduit versions appear automatically with documented defaults, existing values and comments are preserved, and no manual delete/regenerate is ever needed. |
 | **Operator commands** | `/conduit reload \| diagnostics \| health \| doctor \| unblock <ip> \| cache invalidate <ip>` and `/modlist [player]` — no extra plugin needed. |
+| **Metrics JSON endpoint** | Optional loopback HTTP endpoint and `/conduit metrics json` expose diagnostics counters for dashboards. |
+| **Structured diagnostics** | Optional lock-free counters and structured log output for profiling; zero overhead when disabled. |
+| **Native LuckPerms** | Ships the official LuckPerms Velocity plugin and installs it on first run, so permissions, groups, and prefixes work out of the box. Skips if an operator-managed LuckPerms jar is present, and can be disabled via `conduit.toml → [luckperms] → bundle-enabled`. CTD's LuckPerms permission resolver then activates automatically. |
+| **Bundled spark profiler** | Ships the official `lucko/spark` Velocity plugin and installs it as `/sparkv` / `/sparkvelocity`. Skips if an operator-managed spark jar is present, and can be disabled via `conduit.toml → [spark] → bundle-enabled`. |
+
+### Performance
+
+The hot path, tuned and measured.
+
+| Feature | Description |
+|---------|-------------|
+| **Smart compression** | Entropy-based pre-flight compression path avoids unsafe raw above-threshold packets and falls back to vanilla compression when needed. |
+| **Configurable write-buffer watermarks** | Tune Netty's backpressure per-deployment in `conduit.toml` instead of recompiling. |
+| **Increased SO_BACKLOG** | Raised from 128 → 1 024 to handle burst logins on large networks. |
+| **MOTD caching** | Caches server list pings per IP to reduce repeated ping overhead. |
+| **Tab-complete cache** | Short-TTL LRU cache for backend tab-completion responses keyed on (server, prefix). Absorbs key-held tab spam at near-zero CPU. |
+| **Experimental seamless switches** | Optional 1.20.2+ same-dimension server switches that skip the client configuration screen. Disabled by default (`[advanced] seamless-server-switches`). Based on the seamless server switching patch by ohemilyy. |
 
 ---
 
@@ -309,7 +355,7 @@ resetting. The result is logged, e.g. `conduit.toml: added 4 new option(s) with 
 
 ### Migrating from KnownPacksFix
 
-If you were previously using the [KnownPacksFix](https://github.com/koelss/knownpacksfix) plugin:
+If you were previously using the [KnownPacksFix](https://github.com/koels/knownpacksfix) plugin:
 
 1. Remove the plugin JAR from your `plugins/` directory.
 2. Set `max-known-packs` in `conduit.toml` to match your old `config.yml` `pack-limit` value.
@@ -326,40 +372,42 @@ conduit/
 ├── overlays/             ← Files that REPLACE upstream Velocity-CTD files
 │   └── proxy/src/main/java/com/velocitypowered/proxy/
 │       ├── VelocityServer.java           Conduit.init() wiring, branding
-│       ├── network/ConnectionManager.java
-│       ├── network/ServerChannelInitializer.java
-│       ├── connection/client/HandshakeSessionHandler.java
-│       └── protocol/packet/config/KnownPacksPacket.java
+│       ├── Velocity.java
+│       ├── TranslationRegistryManager.java
+│       ├── command/builtin/VelocityCommand.java
+│       ├── connection/MinecraftSessionHandler.java
+│       ├── connection/client/          HandshakeSessionHandler, ConnectedPlayer,
+│       │                               ClientConfigSessionHandler, ClientPlaySessionHandler
+│       ├── connection/backend/         LoginSessionHandler, TransitionSessionHandler,
+│       │                               BackendPlaySessionHandler
+│       ├── network/                    ConnectionManager, ServerChannelInitializer
+│       └── protocol/                   StateRegistry, KnownPacksPacket, RespawnPacket,
+│                                       ClientboundSoundEntityPacket, netty/ compressor
+│                                       and play-packet queue handlers
 │
 ├── additions/            ← New files ADDED on top of upstream
 │   └── proxy/src/main/java/com/velocitypowered/proxy/conduit/
 │       ├── Conduit.java                  lifecycle manager
 │       ├── ConduitConfig.java            conduit.toml reader
-│       ├── command/
-│       │   ├── ConduitCommand.java       /conduit admin command
-│       │   └── ModListCommand.java       /modlist [player] command
-│       ├── modded/
-│       │   ├── ModdedHandshakeCache.java
-│       │   ├── ModdedClientTracker.java
-│       │   ├── ModTrackerListener.java   populates the tracker from REGISTER messages
-│       │   └── NeoForgeHandshakeUtil.java
-│       ├── network/
-│       │   ├── SmartCompression.java
-│       │   ├── PacketQueueManager.java
-│       │   ├── ConnectionThrottler.java
-│       │   └── TabCompleteCache.java
-│       ├── health/
-│       │   ├── BackendHealthChecker.java
-│       │   └── FallbackRouter.java
-│       ├── motd/
-│       │   └── MotdCache.java
-│       ├── security/
-│       │   ├── BotFilter.java
-│       │   └── ChannelGuard.java         drops WDL / X-Ray / cheat-mod channels
-│       ├── shutdown/
-│       │   └── GracefulShutdown.java
-│       └── diagnostics/
-│           └── ConduitDiagnostics.java
+│       ├── ConduitConfigMigrator.java    tops the file up on upgrade
+│       ├── command/                      /conduit and /modlist
+│       ├── modded/                       handshake cache, client tracker, NeoForge utils
+│       ├── routing/                      per-backend mod-compatibility rules
+│       ├── network/                      smart compression, packet queue, throttle,
+│       │                                 tab-complete cache
+│       ├── security/                     bot filter, channel guard (+ presets),
+│       │                                 attack-mode policy
+│       ├── health/                       backend health checker, fallback router
+│       ├── motd/                         MOTD cache
+│       ├── maintenance/                  maintenance mode manager
+│       ├── version/                      version gate and policy
+│       ├── shutdown/                     graceful shutdown
+│       ├── forward/                      backend → proxy command forwarder
+│       ├── update/                       update checker, GitHub provider, semver
+│       ├── diagnostics/                  counters, config diff, doctor, metrics server
+│       ├── permission/                   conduit.* permission nodes
+│       ├── luckperms/                    bundled installer, permission seeder
+│       └── spark/                        bundled installer
 │
 ├── scripts/
 │   ├── setup.sh          ← initial setup (macOS / Linux)
