@@ -4,7 +4,7 @@ All changes relative to upstream `GemstoneGG/Velocity-CTD @ libdeflate`.
 
 ---
 
-## Unreleased — Configurable supported Minecraft versions
+## 1.7.4 — Configurable supported Minecraft versions
 
 ### Added — `[versions]` section in `conduit.toml`
 

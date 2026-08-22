@@ -1,3 +1,59 @@
+# Conduit 1.7.4
+
+## Added
+
+- **Pin which Minecraft versions your network accepts, and advertise them.** A new `[versions]`
+  section in `conduit.toml` lets you name the versions players may join on. Off by default —
+  nothing changes until you set `enabled = true`.
+
+  Describe the accepted set either as a contiguous range or as a list of individual versions:
+
+  ```toml
+  [versions]
+  enabled = true
+
+  # Exact versions, gaps allowed. When non-empty this is the whole accepted set
+  # and minimum/maximum are ignored.
+  allow = ["1.21", "1.21.1", "1.21.11"]
+
+  # Range mode — used only when `allow` is empty. Equal bounds pin one version;
+  # a blank bound means "no limit on that end".
+  minimum = "1.21.11"
+  maximum = "1.21.11"
+  ```
+
+  Either form takes version names (`"1.21.11"`) or raw protocol numbers (`"774"`), as strings or
+  bare integers — the protocol form lets you pin a version this build does not name yet.
+
+- **Accepted players see nothing new.** Their server list entry keeps your normal MOTD, the ping
+  bars, and the live player count.
+
+- **Everyone else sees which versions you run.** A client outside the accepted set gets the vanilla
+  "incompatible version" entry — the red cross in place of the ping bars — labelled `Conduit
+  1.21.11` (configurable via `ping-version-name`). It says what the network runs rather than
+  implying the network is down.
+
+- **A clear message when they try to join.** The connection is refused before authentication with
+  "This network only allows players to join on version 1.21.11." when one version is pinned, or the
+  plural form naming the range or list otherwise. Both templates are configurable through
+  `kick-message` and `kick-message-range`, with `{versions}`, `{min}`, and `{max}` placeholders.
+
+- The range is live-reloadable with `/conduit reload` and shows up in `/conduit config diff`.
+  Existing installs pick the new section up automatically on first start, with values preserved as
+  always.
+
+## Notes
+
+- Some Minecraft releases share one protocol number — 1.21 and 1.21.1, 1.21.9 and 1.21.10, all the
+  1.8.x releases, and others. The client only sends the number, so no proxy can tell those apart.
+  Conduit is honest about it: pinning `1.8` displays and reads back as `1.8–1.8.9`.
+- Unknown version names and inverted ranges are refused at startup with an explanatory error,
+  rather than silently locking everyone out.
+- Versions the proxy itself cannot speak are left to Velocity's own handling, so this setting only
+  ever narrows the supported set — it can never widen it.
+
+---
+
 # Conduit 1.7.3
 
 ## Fixed
