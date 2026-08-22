@@ -75,6 +75,37 @@ class ConduitConfigTest {
   }
 
   @Test
+  void loadsExplicitVersionAllowList() throws Exception {
+    Files.writeString(tempDir.resolve("conduit.toml"),
+        """
+        [versions]
+        enabled = true
+        allow = ["1.21.11", "1.8"]
+        """);
+
+    ConduitConfig config = ConduitConfig.load(tempDir);
+
+    assertTrue(config.getVersionPolicy().isEnabled());
+    assertEquals(2, config.getVersionPolicy().getAllowed().size());
+    assertEquals("1.8–1.8.9, 1.21.11", config.getVersionPolicy().getVersionsLabel());
+  }
+
+  @Test
+  void allowListTakesPrecedenceOverAnInvertedRange() throws Exception {
+    // The range is ignored outright when a list is given, so it is not validated either.
+    Files.writeString(tempDir.resolve("conduit.toml"),
+        """
+        [versions]
+        enabled = true
+        allow = ["1.21.11"]
+        minimum = "1.21.11"
+        maximum = "1.21.4"
+        """);
+
+    assertEquals("1.21.11", ConduitConfig.load(tempDir).getVersionPolicy().getVersionsLabel());
+  }
+
+  @Test
   void rejectsUnknownConfiguredVersion() throws Exception {
     Files.writeString(tempDir.resolve("conduit.toml"),
         """

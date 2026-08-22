@@ -24,6 +24,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.velocitypowered.api.network.ProtocolVersion;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 
 class VersionPolicyTest {
@@ -35,7 +36,11 @@ class VersionPolicyTest {
       "<red>This network only allows players to join on versions <white>{versions}</white>.";
 
   private static VersionPolicy policy(ProtocolVersion min, ProtocolVersion max) {
-    return new VersionPolicy(true, min, max, PING_NAME, KICK, KICK_RANGE);
+    return new VersionPolicy(true, List.of(), min, max, PING_NAME, KICK, KICK_RANGE);
+  }
+
+  private static VersionPolicy allowing(ProtocolVersion... versions) {
+    return new VersionPolicy(true, List.of(versions), null, null, PING_NAME, KICK, KICK_RANGE);
   }
 
   @Test
@@ -124,8 +129,65 @@ class VersionPolicyTest {
   }
 
   @Test
+  void allowListAcceptsOnlyTheListedVersions() {
+    VersionPolicy listed = allowing(ProtocolVersion.MINECRAFT_1_8,
+        ProtocolVersion.MINECRAFT_1_21_4, ProtocolVersion.MINECRAFT_1_21_11);
+
+    assertTrue(listed.isEnabled());
+    assertTrue(listed.allows(ProtocolVersion.MINECRAFT_1_8));
+    assertTrue(listed.allows(ProtocolVersion.MINECRAFT_1_21_4));
+    assertTrue(listed.allows(ProtocolVersion.MINECRAFT_1_21_11));
+    // Everything between the listed versions stays out — that is the point of a list.
+    assertFalse(listed.allows(ProtocolVersion.MINECRAFT_1_12));
+    assertFalse(listed.allows(ProtocolVersion.MINECRAFT_1_21_5));
+  }
+
+  @Test
+  void allowListIsNormalisedAndLabelledInOrder() {
+    VersionPolicy listed = allowing(ProtocolVersion.MINECRAFT_1_21_11,
+        ProtocolVersion.MINECRAFT_1_8, ProtocolVersion.MINECRAFT_1_21_11,
+        ProtocolVersion.MINECRAFT_1_21_4);
+
+    assertEquals(List.of(ProtocolVersion.MINECRAFT_1_8, ProtocolVersion.MINECRAFT_1_21_4,
+        ProtocolVersion.MINECRAFT_1_21_11), listed.getAllowed());
+    assertEquals("1.8–1.8.9, 1.21.4, 1.21.11", listed.getVersionsLabel());
+    assertFalse(listed.isSingleVersion());
+  }
+
+  @Test
+  void singleEntryAllowListUsesTheSingularKickMessage() {
+    VersionPolicy listed = allowing(ProtocolVersion.MINECRAFT_1_21_11);
+
+    assertTrue(listed.isSingleVersion());
+    assertEquals("<red>This network only allows players to join on version"
+        + " <white>1.21.11</white>.", listed.renderKickMessage());
+  }
+
+  @Test
+  void allowListAdvertisesItsHighestVersionAndSpansBothEnds() {
+    VersionPolicy listed = allowing(ProtocolVersion.MINECRAFT_1_8,
+        ProtocolVersion.MINECRAFT_1_21_11);
+
+    assertEquals(ProtocolVersion.MINECRAFT_1_21_11.getProtocol(), listed.advertisedProtocol());
+    assertEquals("1.8 to 1.21.11", new VersionPolicy(true,
+        List.of(ProtocolVersion.MINECRAFT_1_21_11, ProtocolVersion.MINECRAFT_1_8),
+        null, null, "{min} to {max}", "", "").pingVersionName());
+  }
+
+  @Test
+  void allowListWinsOverTheRange() {
+    VersionPolicy listed = new VersionPolicy(true, List.of(ProtocolVersion.MINECRAFT_1_8),
+        ProtocolVersion.MINECRAFT_1_21_4, ProtocolVersion.MINECRAFT_1_21_11,
+        PING_NAME, KICK, KICK_RANGE);
+
+    assertTrue(listed.allows(ProtocolVersion.MINECRAFT_1_8));
+    assertFalse(listed.allows(ProtocolVersion.MINECRAFT_1_21_11));
+    assertEquals("1.8–1.8.9", listed.getVersionsLabel());
+  }
+
+  @Test
   void minMaxPlaceholdersAreSubstituted() {
-    VersionPolicy range = new VersionPolicy(true, ProtocolVersion.MINECRAFT_1_21_4,
+    VersionPolicy range = new VersionPolicy(true, List.of(), ProtocolVersion.MINECRAFT_1_21_4,
         ProtocolVersion.MINECRAFT_1_21_11, "{min} to {max}", "", "");
 
     assertEquals("1.21.4 to 1.21.11", range.pingVersionName());
@@ -133,8 +195,8 @@ class VersionPolicyTest {
 
   @Test
   void blankKickTemplatesFallBackToTheShippedWording() {
-    VersionPolicy pinned = new VersionPolicy(true, ProtocolVersion.MINECRAFT_1_21_11,
-        ProtocolVersion.MINECRAFT_1_21_11, "", "", "");
+    VersionPolicy pinned = new VersionPolicy(true, List.of(),
+        ProtocolVersion.MINECRAFT_1_21_11, ProtocolVersion.MINECRAFT_1_21_11, "", "", "");
 
     assertEquals("<red>This network only allows players to join on version"
         + " <white>1.21.11</white>.", pinned.renderKickMessage());

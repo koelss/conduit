@@ -248,22 +248,41 @@ allowlist = []
 # version this proxy build supports may join.
 enabled = false
 
-# Lowest and highest Minecraft version accepted, inclusive. Set both to the same
-# value to pin one exact version. Accepts a version name ("1.21.11") or a raw
-# protocol number ("774"). Leave a bound blank ("") for "no limit on that end",
-# e.g. minimum = "1.21.4" with maximum = "" allows 1.21.4 and anything newer.
+# There are two ways to describe which versions you accept: a contiguous range
+# (minimum/maximum, below) or an explicit list of individual versions (`allow`).
+# Both accept a version name ("1.21.11") or a raw protocol number ("774") — the
+# latter is handy for pinning a version this build does not name yet.
+#
+# `allow` lists individual versions and is the only way to accept a set with
+# gaps in it. Order does not matter, and duplicates are ignored. When it is
+# non-empty it is the whole accepted set and minimum/maximum are ignored.
+#   allow = ["1.21", "1.21.1", "1.21.11"]   # exactly these three, nothing else
+#   allow = ["1.8", "1.21.11"]              # the classic PvP version and current
+#   allow = ["774"]                          # same as ["1.21.11"], by protocol
+# Note that 1.21 and 1.21.1 share one protocol number, as do several other pairs
+# of releases — listing either name accepts both, and the server list and kick
+# message say so ("1.21–1.21.1"). That is Mojang's doing, not a setting: the
+# proxy cannot tell those two clients apart.
+allow = []
+
+# Lowest and highest Minecraft version accepted, inclusive — used when `allow`
+# is empty. Set both to the same value to pin one exact version. Leave a bound
+# blank ("") for "no limit on that end", e.g. minimum = "1.21.4" with
+# maximum = "" allows 1.21.4 and anything newer.
 minimum = "1.21.11"
 maximum = "1.21.11"
 
-# Text shown in the server-list version slot to clients outside the range. This
-# is plain text (the client renders it in red itself), not MiniMessage.
-#   {versions} — the accepted range, e.g. "1.21.11" or "1.21.4–1.21.11"
-#   {min} / {max} — the individual bounds
+# Text shown in the server-list version slot to clients outside the accepted
+# set. This is plain text (the client renders it in red itself), not MiniMessage.
+#   {versions} — the accepted versions, e.g. "1.21.11", "1.21.4–1.21.11", or
+#                "1.8, 1.21.4, 1.21.11" for an allow list
+#   {min} / {max} — the lowest and highest accepted version
 ping-version-name = "Conduit {versions}"
 
 # MiniMessage disconnect message shown when someone tries to join on an
 # unsupported version. `kick-message` is used when exactly one version is
-# allowed, `kick-message-range` when a range is. Same placeholders as above.
+# allowed, `kick-message-range` when several are (a range or an allow list).
+# Same placeholders as above.
 kick-message = "<red>This network only allows players to join on version <white>{versions}</white>."
 kick-message-range = "<red>This network only allows players to join on versions <white>{versions}</white>."
 

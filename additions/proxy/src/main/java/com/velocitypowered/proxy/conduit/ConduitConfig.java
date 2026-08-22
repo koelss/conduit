@@ -19,6 +19,7 @@ package com.velocitypowered.proxy.conduit;
 
 import com.electronwill.nightconfig.core.CommentedConfig;
 import com.electronwill.nightconfig.core.file.CommentedFileConfig;
+import com.velocitypowered.api.network.ProtocolVersion;
 import com.velocitypowered.proxy.conduit.routing.ModCompatibilityRules;
 import com.velocitypowered.proxy.conduit.security.AttackModePolicy;
 import com.velocitypowered.proxy.conduit.security.ChannelGuardPreset;
@@ -29,6 +30,7 @@ import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import org.apache.logging.log4j.LogManager;
@@ -383,6 +385,7 @@ public final class ConduitConfig {
     if (versions != null) {
       b.versionPolicy = new VersionPolicy(
           versions.getOrElse("enabled", false),
+          parseVersionList(versions.getOrElse("allow", Collections.emptyList())),
           VersionPolicy.parseVersion("versions.minimum",
               asVersionString(versions.get("minimum"))),
           VersionPolicy.parseVersion("versions.maximum",
@@ -467,6 +470,27 @@ public final class ConduitConfig {
   }
 
   /**
+   * Resolves the {@code versions.allow} list, which names individual versions rather than a range.
+   *
+   * <p>Entries may be version names or protocol numbers, in any order, and TOML gives back either
+   * strings or integers depending on how they were written — all of which
+   * {@link #asVersionString} and {@link VersionPolicy#parseVersion} already handle.
+   */
+  private static List<ProtocolVersion> parseVersionList(List<?> configured) {
+    if (configured == null || configured.isEmpty()) {
+      return Collections.emptyList();
+    }
+    List<ProtocolVersion> parsed = new ArrayList<>(configured.size());
+    for (Object entry : configured) {
+      String value = asVersionString(entry);
+      if (!value.isBlank()) {
+        parsed.add(VersionPolicy.parseVersion("versions.allow", value));
+      }
+    }
+    return parsed;
+  }
+
+  /**
    * Renders a configured version bound as a string.
    *
    * <p>TOML types both {@code minimum = "774"} and {@code minimum = 774}; operators reach for
@@ -520,7 +544,8 @@ public final class ConduitConfig {
             + " 'namespace:path' — got '" + channel + "'");
       }
     }
-    if (b.versionPolicy.getMinimum() != null && b.versionPolicy.getMaximum() != null
+    if (b.versionPolicy.getAllowed().isEmpty()
+        && b.versionPolicy.getMinimum() != null && b.versionPolicy.getMaximum() != null
         && b.versionPolicy.getMinimum().greaterThan(b.versionPolicy.getMaximum())) {
       throw new IllegalArgumentException("conduit.toml: versions.minimum ("
           + b.versionPolicy.getMinimum().getVersionIntroducedIn() + ") must be <= versions.maximum ("

@@ -31,7 +31,7 @@ backends.
 | **Channel guard** | Intercepts known cheat / exploit plugin-message channels (World-Downloader, X-Ray clients) and applies a drop / kick / log policy. |
 | **Attack mode** | `/conduit attackmode on/off/status` applies stricter live flood-mitigation limits without editing config. |
 | **Maintenance mode** | `/conduit maintenance on/off/status` closes the network to non-exempt players with a custom kick message and maintenance MOTD. Bypass via permission or username allow-list; state survives restarts. Replaces standalone Maintenance plugins. |
-| **Version gate** | Pin the Minecraft versions your network accepts via `conduit.toml → [versions]`. In-range clients see the normal MOTD, ping, and player count; out-of-range clients get the vanilla "incompatible version" server-list entry labelled with your supported versions, and a join attempt is refused with a message naming them. |
+| **Version gate** | Pin the Minecraft versions your network accepts via `conduit.toml → [versions]` — a contiguous range, or an explicit list of individual versions for a set with gaps in it. Accepted clients see the normal MOTD, ping, and player count; others get the vanilla "incompatible version" server-list entry labelled with your supported versions, and a join attempt is refused with a message naming them. |
 | **Mod compatibility routing** | Optional per-backend allow rules for Vanilla, Fabric, Forge, NeoForge, and unknown modded clients. |
 | **Tab-complete cache** | Short-TTL LRU cache for backend tab-completion responses keyed on (server, prefix). Absorbs key-held tab spam at near-zero CPU. |
 | **Metrics JSON endpoint** | Optional loopback HTTP endpoint and `/conduit metrics json` expose diagnostics counters for dashboards. |
@@ -178,7 +178,9 @@ allowlist       = []        # usernames always allowed in during maintenance
 
 [versions]
 enabled            = false      # opt-in; false accepts every version the proxy supports
-minimum            = "1.21.11"  # version name or protocol number; "" for no lower bound
+allow              = []         # e.g. ["1.21", "1.21.1", "1.21.11"] — exact versions, gaps allowed;
+                                # when non-empty this is the whole accepted set (minimum/maximum ignored)
+minimum            = "1.21.11"  # range mode: version name or protocol number; "" for no lower bound
 maximum            = "1.21.11"  # set equal to minimum to pin one exact version
 ping-version-name  = "Conduit {versions}"  # server-list label shown to out-of-range clients
 kick-message       = "<red>This network only allows players to join on version <white>{versions}</white>."

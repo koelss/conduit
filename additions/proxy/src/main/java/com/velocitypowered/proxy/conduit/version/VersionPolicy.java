@@ -18,7 +18,12 @@
 package com.velocitypowered.proxy.conduit.version;
 
 import com.velocitypowered.api.network.ProtocolVersion;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.EnumSet;
+import java.util.List;
 import java.util.Locale;
+import java.util.stream.Collectors;
 
 /**
  * The immutable client-version range an operator advertises and accepts, parsed from the
@@ -34,20 +39,28 @@ import java.util.Locale;
  *   <li>{@link #renderKickMessage()} — what a rejected client is told when it tries to join.</li>
  * </ul>
  *
- * <p>Both bounds are optional: a policy may pin an exact version ({@code minimum == maximum}), set
- * only a floor, only a ceiling, or neither (in which case it accepts everything the proxy itself
- * supports). {@link #DISABLED} is the no-op policy used when the feature is switched off.
+ * <p>The accepted set is described in one of two ways. An explicit {@code allow} list names
+ * individual versions and is the only way to accept a non-contiguous set (1.8 and 1.21.11 but
+ * nothing between them, say). Otherwise a {@code minimum}/{@code maximum} range is used, where both
+ * bounds are optional: a policy may pin an exact version ({@code minimum == maximum}), set only a
+ * floor, only a ceiling, or neither (in which case it accepts everything the proxy itself
+ * supports). A non-empty allow list takes precedence over the range. {@link #DISABLED} is the no-op
+ * policy used when the feature is switched off.
  */
 public final class VersionPolicy {
 
   /** En dash used between the two ends of a version range in operator-facing text. */
   private static final String RANGE_SEPARATOR = "–";
 
+  /** Separator between the entries of an explicit allow list in operator-facing text. */
+  private static final String LIST_SEPARATOR = ", ";
+
   /** Policy that restricts nothing — every version the proxy supports may join. */
   public static final VersionPolicy DISABLED =
-      new VersionPolicy(false, null, null, "", "", "");
+      new VersionPolicy(false, List.of(), null, null, "", "", "");
 
   private final boolean enabled;
+  private final List<ProtocolVersion> allowed;
   private final ProtocolVersion minimum;
   private final ProtocolVersion maximum;
   private final String pingVersionNameTemplate;
@@ -59,16 +72,22 @@ public final class VersionPolicy {
    * Constructs a policy.
    *
    * @param enabled                  whether the restriction is active at all
+   * @param allowed                  explicitly accepted versions; when non-empty this is the whole
+   *                                 accepted set and the bounds below are ignored. Order and
+   *                                 duplicates do not matter — the list is normalised to ascending
+   *                                 protocol order
    * @param minimum                  lowest accepted version, or {@code null} for no floor
    * @param maximum                  highest accepted version, or {@code null} for no ceiling
    * @param pingVersionNameTemplate  server-list version label shown to rejected clients
    * @param kickMessageTemplate      MiniMessage kick text used when a single version is allowed
-   * @param kickMessageRangeTemplate MiniMessage kick text used when a range is allowed
+   * @param kickMessageRangeTemplate MiniMessage kick text used when several versions are allowed
    */
-  public VersionPolicy(boolean enabled, ProtocolVersion minimum, ProtocolVersion maximum,
+  public VersionPolicy(boolean enabled, Collection<ProtocolVersion> allowed,
+      ProtocolVersion minimum, ProtocolVersion maximum,
       String pingVersionNameTemplate, String kickMessageTemplate,
       String kickMessageRangeTemplate) {
     this.enabled = enabled;
+    this.allowed = normalise(allowed);
     this.minimum = minimum;
     this.maximum = maximum;
     this.pingVersionNameTemplate = pingVersionNameTemplate == null ? "" : pingVersionNameTemplate;
@@ -118,7 +137,15 @@ public final class VersionPolicy {
 
   /** Returns whether this policy restricts anything at all. */
   public boolean isEnabled() {
-    return enabled && (minimum != null || maximum != null);
+    return enabled && (!allowed.isEmpty() || minimum != null || maximum != null);
+  }
+
+  /**
+   * Returns the explicitly allowed versions in ascending protocol order, or an empty list when the
+   * policy uses a {@code minimum}/{@code maximum} range instead.
+   */
+  public List<ProtocolVersion> getAllowed() {
+    return allowed;
   }
 
   /** Returns the lowest accepted version, or {@code null} when there is no floor. */
@@ -142,6 +169,9 @@ public final class VersionPolicy {
     if (!isEnabled() || version == null || !version.isSupported()) {
       return true;
     }
+    if (!allowed.isEmpty()) {
+      return allowed.contains(version);
+    }
     if (minimum != null && version.lessThan(minimum)) {
       return false;
     }
@@ -150,13 +180,17 @@ public final class VersionPolicy {
 
   /** Returns {@code true} when exactly one protocol version is accepted. */
   public boolean isSingleVersion() {
+    if (!allowed.isEmpty()) {
+      return allowed.size() == 1;
+    }
     return minimum != null && minimum == maximum;
   }
 
   /**
-   * Returns the operator-facing description of the accepted range — {@code "1.21.11"} when a single
-   * version is pinned, {@code "1.21.4–1.21.11"} for a range, and open-ended forms such as
-   * {@code "1.21.4 or newer"} when only one bound is set.
+   * Returns the operator-facing description of the accepted versions — {@code "1.21.11"} when a
+   * single version is pinned, {@code "1.21.4–1.21.11"} for a range, open-ended forms such as
+   * {@code "1.21.4 or newer"} when only one bound is set, and a comma-separated enumeration such as
+   * {@code "1.8, 1.21.4, 1.21.11"} for an explicit allow list.
    */
   public String getVersionsLabel() {
     return versionsLabel;
@@ -178,6 +212,9 @@ public final class VersionPolicy {
    * instead of the ping bars.
    */
   public int advertisedProtocol() {
+    if (!allowed.isEmpty()) {
+      return allowed.get(allowed.size() - 1).getProtocol();
+    }
     ProtocolVersion advertised = maximum != null ? maximum : minimum;
     return advertised == null ? ProtocolVersion.MAXIMUM_VERSION.getProtocol()
         : advertised.getProtocol();
@@ -195,13 +232,20 @@ public final class VersionPolicy {
   }
 
   private String applyPlaceholders(String template) {
+    ProtocolVersion low = allowed.isEmpty() ? minimum : allowed.get(0);
+    ProtocolVersion high = allowed.isEmpty() ? maximum : allowed.get(allowed.size() - 1);
     return template
         .replace("{versions}", versionsLabel)
-        .replace("{min}", minimum == null ? "" : minimum.getVersionIntroducedIn())
-        .replace("{max}", maximum == null ? "" : maximum.getMostRecentSupportedVersion());
+        .replace("{min}", low == null ? "" : low.getVersionIntroducedIn())
+        .replace("{max}", high == null ? "" : high.getMostRecentSupportedVersion());
   }
 
   private String buildVersionsLabel() {
+    if (!allowed.isEmpty()) {
+      return allowed.stream()
+          .map(VersionPolicy::singleLabel)
+          .collect(Collectors.joining(LIST_SEPARATOR));
+    }
     if (minimum == null && maximum == null) {
       return ProtocolVersion.SUPPORTED_VERSION_STRING;
     }
@@ -227,6 +271,25 @@ public final class VersionPolicy {
     String first = version.getVersionIntroducedIn();
     String last = version.getMostRecentSupportedVersion();
     return first.equals(last) ? first : first + RANGE_SEPARATOR + last;
+  }
+
+  /**
+   * Sorts an allow list into ascending protocol order and drops duplicates and nulls, so the
+   * operator can list versions in any order (and name two releases that share one protocol) without
+   * changing what the policy accepts or how it describes itself.
+   */
+  private static List<ProtocolVersion> normalise(Collection<ProtocolVersion> versions) {
+    if (versions == null || versions.isEmpty()) {
+      return List.of();
+    }
+    EnumSet<ProtocolVersion> distinct = EnumSet.noneOf(ProtocolVersion.class);
+    for (ProtocolVersion version : versions) {
+      if (version != null) {
+        distinct.add(version);
+      }
+    }
+    // EnumSet iterates in declaration order, which is ascending protocol order.
+    return List.copyOf(new ArrayList<>(distinct));
   }
 
   @Override

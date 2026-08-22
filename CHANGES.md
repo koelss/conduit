@@ -8,10 +8,13 @@ All changes relative to upstream `GemstoneGG/Velocity-CTD @ libdeflate`.
 
 ### Added — `[versions]` section in `conduit.toml`
 
-* Operators can pin which Minecraft versions the network accepts and advertises, with
-  `minimum`/`maximum` given either as version names (`"1.21.11"`) or raw protocol numbers
-  (`"774"`). Leaving a bound blank makes that end open, and setting both to the same value pins one
-  exact version. Off by default — nothing changes until `enabled = true`.
+* Operators can pin which Minecraft versions the network accepts and advertises. A contiguous
+  range is given as `minimum`/`maximum`: leaving a bound blank makes that end open, and setting
+  both to the same value pins one exact version. A set with gaps in it (`1.21`, `1.21.1`, and
+  `1.21.11` but nothing between) is given as an explicit `allow` list, which takes precedence over
+  the range when non-empty and is normalised to ascending order with duplicates dropped. Either
+  form accepts version names (`"1.21.11"`) or raw protocol numbers (`"774"`), as strings or bare
+  integers. Off by default — nothing changes until `enabled = true`.
 * `VersionGate` rewrites the server-list ping for clients outside the range: the advertised
   `version.protocol` is deliberately one the client cannot be speaking, which is the vanilla
   "incompatible" signal, and `version.name` carries the configured label (`Conduit 1.21.11` by
@@ -23,8 +26,8 @@ All changes relative to upstream `GemstoneGG/Velocity-CTD @ libdeflate`.
   behind one address each get the right answer.
 * A join attempt from outside the range is denied at `PreLoginEvent` — before authentication — with
   a MiniMessage message that names the accepted versions: "This network only allows players to join
-  on version 1.21.11." for a pinned version, and the plural "…on versions 1.21.4–1.21.11." for a
-  range. Both are configurable (`kick-message`, `kick-message-range`), with `{versions}`, `{min}`,
+  on version 1.21.11." for a pinned version, and the plural "…on versions 1.21.4–1.21.11." (or
+  "…on versions 1.8–1.8.9, 1.21.11." for an allow list) otherwise. Both are configurable (`kick-message`, `kick-message-range`), with `{versions}`, `{min}`,
   and `{max}` placeholders.
 * Unknown version names and inverted ranges are rejected at config load with an explanatory error.
   Protocols the proxy itself does not support are left to Velocity's own handling, so the setting
